@@ -1,0 +1,51 @@
+# project.yaml — focused single-project session
+# Used by: tp / tproject (tmux) and zo / zp-new (zellij)
+# Launch in current dir: tp .  /  zo .
+
+id: project
+name: Projet
+description: Focused single-project session
+prefix: ""
+cwd: $paths.projects
+
+tabs:
+  - id: work
+    name: work
+    emoji: 🖥️
+    focus: true
+    panes:
+      - direction: row
+        children:
+          - id: claude
+            name: claude
+            description: claude — main workspace
+            size: 70%
+            focus: true
+            command: ""
+          - direction: column
+            size: 30%
+            children:
+              - id: git
+                name: git
+                description: git status (auto-refresh)
+                command: watch -n 5 -c git status -sb
+                close_on_exit: false
+              - id: logs
+                name: logs
+                description: shell / logs
+                command: ""
+
+  - id: scratch
+    name: scratch
+    emoji: 🧪
+    panes:
+      - direction: row
+        children:
+          - id: shell-1
+            name: shell
+            description: scratch
+            command: ""
+          - id: shell-2
+            name: shell
+            description: scratch
+            command: ""

@@ -1,0 +1,36 @@
+# defaults.yaml — shared defaults for all workflows
+# Override per-workflow in manifest/workflows/<name>.yaml
+# Override per-user in ~/.config/terminal-layouts/config (sourced by generators)
+
+version: 1
+
+defaults:
+  shell: $SHELL
+  show_statusbar: true
+  # Default split direction at the root of a pane tree, if the workflow
+  # provides multiple root panes without an explicit container.
+  root_direction: row
+
+# Directory roots (overridable via env vars or user config)
+paths:
+  projects: ~/projects
+  docker: ~/docker
+  ops: ~/ops
+  pentest: ~/ops/pentest
+  malware: ~/ops/malware
+  osint: ~/ops/osint
+  ctf: ~/ops/ctf
+
+# Session name prefixes (keep backward compat with existing aliases)
+prefixes:
+  docker: dk-
+  pentest: pt-
+  malware: ma-
+  osint: os-
+  ctf: ctf-
+
+# Shared emojis (workflow-specific emojis live in each workflow file)
+emojis:
+  cockpit: 🏠
+  work: 🖥️
+  scratch: 🧪

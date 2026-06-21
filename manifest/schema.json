@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/gl0bal01/terminal-layouts/manifest/schema.json",
+  "title": "Terminal Layouts Manifest",
+  "description": "Source-of-truth format for generating tmux (.yaml) and Zellij (.kdl) layouts",
+  "type": "object",
+  "required": ["id", "name", "tabs"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Workflow slug (lowercase, hyphenated)"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable workflow name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional one-line summary"
+    },
+    "prefix": {
+      "type": "string",
+      "default": "",
+      "description": "Session name prefix (e.g. 'dk-', 'ctf-')"
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Working directory. Supports $paths.* references, $PWD, or literal paths."
+    },
+    "tabs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/tab" }
+    }
+  },
+  "definitions": {
+    "tab": {
+      "type": "object",
+      "required": ["id", "name", "panes"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "emoji": { "type": "string", "description": "Optional emoji prefix in tab name" },
+        "focus": { "type": "boolean", "default": false },
+        "cwd": { "type": "string" },
+        "tmux_only": { "type": "boolean", "default": false },
+        "zellij_only": { "type": "boolean", "default": false },
+        "panes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/pane" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "tmux_only": { "const": true } } },
+          "then": { "properties": { "zellij_only": { "const": false } } }
+        }
+      ]
+    },
+    "pane": {
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/definitions/leafPane" },
+        { "$ref": "#/definitions/containerPane" }
+      ]
+    },
+    "leafPane": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "name": { "type": "string", "description": "Pane title (defaults to id)" },
+        "description": { "type": "string", "description": "Hint text shown on launch" },
+        "command": { "type": "string", "default": "", "description": "Shell command. Empty = plain shell." },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "focus": { "type": "boolean", "default": false },
+        "size": {
+          "oneOf": [
+            { "type": "string", "pattern": "^[0-9]+%$" },
+            { "type": "number" }
+          ]
+        },
+        "close_on_exit": { "type": "boolean", "default": false },
+        "cwd": { "type": "string" }
+      },
+      "not": {
+        "anyOf": [
+          { "required": ["direction"] },
+          { "required": ["children"] }
+        ]
+      }
+    },
+    "containerPane": {
+      "type": "object",
+      "required": ["direction", "children"],
+      "additionalProperties": false,
+      "properties": {
+        "direction": { "type": "string", "enum": ["row", "column"] },
+        "children": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/definitions/pane" }
+        },
+        "size": {
+          "oneOf": [
+            { "type": "string", "pattern": "^[0-9]+%$" },
+            { "type": "number" }
+          ]
+        },
+        "focus": { "type": "boolean", "default": false }
+      },
+      "not": {
+        "anyOf": [
+          { "required": ["id"] },
+          { "required": ["command"] }
+        ]
+      }
+    }
+  }
+}
