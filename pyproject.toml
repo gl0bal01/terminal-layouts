@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "terminal-layouts"
+description = "One manifest, two outputs: tmux (tmuxp YAML) + Zellij (KDL) layouts."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "gl0bal01", email = "gl0bal01@proton.me" }]
+keywords = ["tmux", "tmuxp", "zellij", "layout", "terminal"]
+classifiers = [
+    "Environment :: Console",
+    "Programming Language :: Python :: 3",
+    "Topic :: Terminals",
+]
+dependencies = ["pyyaml>=6.0", "jsonschema>=4.10"]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/gl0bal01/terminal-layouts"
+Repository = "https://github.com/gl0bal01/terminal-layouts"
+
+[project.scripts]
+tl = "terminal_layouts.cli:main"
+terminal-layouts = "terminal_layouts.cli:main"
+
+[tool.hatch.version]
+path = "terminal_layouts/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["terminal_layouts"]
+
+[tool.hatch.build.targets.sdist]
+include = ["terminal_layouts", "tests", "Makefile", "README.md", "LICENSE"]

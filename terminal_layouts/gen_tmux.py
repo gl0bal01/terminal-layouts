@@ -17,12 +17,8 @@ Strategy:
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
-# Allow running without installation
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import common  # noqa: E402
+from terminal_layouts import common
 
 
 def yaml_dq(s: str) -> str:
@@ -50,8 +46,13 @@ def emit_pane_command(pane: dict) -> str:
     cmd = pane.get("command") or ""
     if not cmd:
         return emit_decoration(pane)
-    # Non-empty command: set title, then run
+    # Non-empty command: set title, then run.
+    # Explicit args[] are shell-quoted so args containing spaces or escapes
+    # (e.g. a docker --format value) survive as a single argument.
     name = common.pane_name(pane)
+    args = pane.get("args")
+    if args:
+        cmd = cmd + " " + " ".join(sh_sq(a) for a in args)
     return f"tmux set -p -t \"$TMUX_PANE\" @mytitle {sh_sq(name)}; {cmd}"
 
 
@@ -117,10 +118,10 @@ def emit_window(tab: dict, session_cwd: str | None) -> list[str]:
         focus_line = "      - focus: true" if main_leaf.get("focus") else "      -"
         lines.append(focus_line)
         lines.append("        shell_command:")
-        lines.append(f"          - {emit_pane_command(main_leaf)}")
+        lines.append(f"          - {yaml_dq(emit_pane_command(main_leaf))}")
         for sp in side_leaves:
             lines.append("      - shell_command:")
-            lines.append(f"          - {emit_pane_command(sp)}")
+            lines.append(f"          - {yaml_dq(emit_pane_command(sp))}")
     else:
         leaves = flatten_panes(panes)
         lines.append("    layout: tiled")
@@ -129,7 +130,7 @@ def emit_window(tab: dict, session_cwd: str | None) -> list[str]:
             focus_line = "      - focus: true" if leaf.get("focus") else "      -"
             lines.append(focus_line)
             lines.append("        shell_command:")
-            lines.append(f"          - {emit_pane_command(leaf)}")
+            lines.append(f"          - {yaml_dq(emit_pane_command(leaf))}")
     return lines
 
 
@@ -156,13 +157,17 @@ def emit_tmux(wf: dict, defaults: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def main() -> int:
-    if len(sys.argv) != 2:
-        sys.exit("usage: gen-tmux.py <workflow_id>")
-    wf_id = sys.argv[1]
+def render(wf_id: str) -> str:
+    """Return the tmuxp YAML for a workflow id."""
     defaults = common.load_defaults()
     wf = common.load_workflow(wf_id)
-    sys.stdout.write(emit_tmux(wf, defaults))
+    return emit_tmux(wf, defaults)
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        sys.exit("usage: gen_tmux.py <workflow_id>")
+    sys.stdout.write(render(sys.argv[1]))
     return 0
 
 

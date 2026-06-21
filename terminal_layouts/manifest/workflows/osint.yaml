@@ -1,0 +1,130 @@
+# osint.yaml — OSINT investigation workflow layout
+# Used by: zos / zos-new (zellij)
+# Launch with target: zos-new <target-name>
+
+id: osint
+name: OSINT
+description: OSINT investigation workflow layout
+prefix: "os-"
+cwd: $paths.osint
+
+tabs:
+  - id: target
+    name: target
+    emoji: 🎯
+    focus: true
+    panes:
+      - direction: row
+        children:
+          - direction: column
+            size: 60%
+            children:
+              - id: recon
+                name: recon
+                description: "whois, dig, host, nslookup — theHarvester -d target.com -b all"
+                focus: true
+                command: ""
+              - id: infra
+                name: infra
+                description: "shodan search, censys, amass enum — subfinder, assetfinder, dnsx"
+                command: ""
+          - direction: column
+            size: 40%
+            children:
+              - id: ip-lookup
+                name: ip-lookup
+                description: "ipinfo, abuseipdb, bgp.he.net lookups"
+                command: ""
+              - id: notes
+                name: notes
+                description: "Running notes on target scope"
+                command: ""
+
+  - id: web
+    name: web
+    emoji: 🌐
+    panes:
+      - direction: row
+        children:
+          - direction: column
+            size: 60%
+            children:
+              - id: wayback
+                name: wayback
+                description: "waybackurls / gau — archive enumeration — curl / wget for page grabs"
+                focus: true
+                command: ""
+              - id: metadata
+                name: metadata
+                description: "exiftool on downloaded docs — metagoofil for public docs"
+                command: ""
+          - direction: column
+            size: 40%
+            children:
+              - id: tech-stack
+                name: tech-stack
+                description: "whatweb, wappalyzer-cli, httpx"
+                command: ""
+              - id: certificates
+                name: certificates
+                description: "crt.sh queries: curl \"https://crt.sh/?q=target.com&output=json\""
+                command: ""
+
+  - id: social
+    name: social
+    emoji: 📡
+    panes:
+      - direction: row
+        children:
+          - direction: column
+            size: 60%
+            children:
+              - id: profiles
+                name: profiles
+                description: "sherlock, maigret — username search — holehe — email to service lookup"
+                focus: true
+                command: ""
+              - id: email
+                name: email
+                description: "h8mail, emailrep.io, hunter.io CLI — emailfinder"
+                command: ""
+          - direction: column
+            size: 40%
+            children:
+              - id: leaks
+                name: leaks
+                description: "haveibeenpwned CLI, dehashed lookups"
+                command: ""
+              - id: phone
+                name: phone
+                description: "phoneinfoga, carrier/location lookups"
+                command: ""
+
+  - id: timeline
+    name: timeline
+    emoji: 🗂️
+    panes:
+      - direction: row
+        children:
+          - direction: column
+            size: 65%
+            children:
+              - id: report
+                name: report
+                description: "Markdown investigation report — maltego export / link analysis notes"
+                focus: true
+                command: ""
+              - id: correlate
+                name: correlate
+                description: "grep / sort / uniq across collected data — jq for JSON pivoting"
+                command: ""
+          - direction: column
+            size: 35%
+            children:
+              - id: evidence
+                name: evidence
+                description: "ls -lAt evidence/ — track what was captured"
+                command: ""
+              - id: shell
+                name: shell
+                command: ""

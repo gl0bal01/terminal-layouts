@@ -13,11 +13,8 @@ Zellij natively supports nested pane trees via split_direction:
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import common  # noqa: E402
+from terminal_layouts import common
 
 INDENT = "    "  # 4 spaces
 
@@ -39,18 +36,26 @@ def emit_leaf(pane: dict, depth: int) -> list[str]:
 
     cmd = pane.get("command") or ""
     if cmd:
-        # Split command into program + args (simple split; user can use args[] for control)
-        import shlex
-        try:
-            tokens = shlex.split(cmd)
-        except ValueError:
-            tokens = [cmd]
-        parts.append(f'command={kdl_str(tokens[0])}')
-        if len(tokens) > 1:
+        # Explicit args[] take precedence (preserves args containing spaces and
+        # escapes verbatim); otherwise fall back to shell-splitting the command.
+        explicit = pane.get("args")
+        if explicit is not None:
+            program = cmd
+            arg_tokens = list(explicit)
+        else:
+            import shlex
+            try:
+                tokens = shlex.split(cmd)
+            except ValueError:
+                tokens = [cmd]
+            program = tokens[0]
+            arg_tokens = tokens[1:]
+        parts.append(f'command={kdl_str(program)}')
+        if arg_tokens:
             parts.append("close_on_exit=false")
             line = f"{pad}{' '.join(parts)} {{"
             lines = [line]
-            args_line = f"{pad}{INDENT}args " + " ".join(kdl_str(t) for t in tokens[1:])
+            args_line = f"{pad}{INDENT}args " + " ".join(kdl_str(t) for t in arg_tokens)
             lines.append(args_line)
             lines.append(f"{pad}}}")
             return lines
@@ -135,13 +140,17 @@ def emit_zellij(wf: dict, defaults: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def main() -> int:
-    if len(sys.argv) != 2:
-        sys.exit("usage: gen-zellij.py <workflow_id>")
-    wf_id = sys.argv[1]
+def render(wf_id: str) -> str:
+    """Return the Zellij KDL for a workflow id."""
     defaults = common.load_defaults()
     wf = common.load_workflow(wf_id)
-    sys.stdout.write(emit_zellij(wf, defaults))
+    return emit_zellij(wf, defaults)
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        sys.exit("usage: gen_zellij.py <workflow_id>")
+    sys.stdout.write(render(sys.argv[1]))
     return 0
 
 

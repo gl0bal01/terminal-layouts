@@ -12,7 +12,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PYTHON="${PYTHON:-python3}"
-WORKFLOWS_DIR="manifest/workflows"
+WORKFLOWS_DIR="terminal_layouts/manifest/workflows"
 TMUX_DIR="dist/tmux"
 ZELLIJ_DIR="dist/zellij"
 

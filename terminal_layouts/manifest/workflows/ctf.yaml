@@ -1,0 +1,185 @@
+# ctf.yaml — CTF competition workflow
+# Used by: tp / tctf (tmux) and zo / zctf-new (zellij)
+# Launch in ctf dir: tp ctf  /  zo ctf
+
+id: ctf
+name: CTF
+description: CTF competition workflow layout
+prefix: "ctf-"
+cwd: $paths.ctf
+
+tabs:
+  - id: cockpit
+    name: cockpit
+    emoji: 🏁
+    focus: true
+    panes:
+      - direction: row
+        children:
+          - direction: column
+            size: 60%
+            children:
+              - id: notes
+                name: notes
+                description: challenge tracker — name, category, points, status; flag log
+                focus: true
+                command: ""
+              - id: shell
+                name: shell
+                description: shell
+                command: ""
+          - id: submit
+            name: submit
+            description: curl flag submission / platform CLI
+            size: 40%
+            command: ""
+
+  - id: web
+    name: web
+    emoji: 🌐
+    panes:
+      - direction: row
+        children:
+          - direction: column
+            size: 60%
+            children:
+              - id: requests
+                name: requests
+                description: curl, httpie, sqlmap, feroxbuster, ffuf
+                focus: true
+                command: ""
+              - id: source
+                name: source
+                description: view page source, JS files, API responses
+                command: ""
+          - direction: column
+            size: 40%
+            children:
+              - id: proxy
+                name: proxy
+                description: mitmproxy / burp CLI / caido
+                command: ""
+              - id: exploit
+                name: exploit
+                description: XSS payloads, SQLi, SSTI, deserialization
+                command: ""
+
+  - id: pwn
+    name: pwn
+    emoji: 💥
+    panes:
+      - direction: row
+        children:
+          - direction: column
+            size: 60%
+            children:
+              - id: debugger
+                name: debugger
+                description: gdb -q ./binary (pwndbg / gef / peda)
+                focus: true
+                command: ""
+              - id: disasm
+                name: disasm
+                description: objdump -d, radare2, ghidra headless, cutter
+                command: ""
+          - direction: column
+            size: 40%
+            children:
+              - id: exploit
+                name: exploit
+                description: python3 exploit.py (pwntools script)
+                command: ""
+              - id: checksec
+                name: checksec
+                description: checksec ./binary, ropper, ROPgadget, one_gadget
+                command: ""
+
+  - id: crypto
+    name: crypto
+    emoji: 🔐
+    panes:
+      - direction: row
+        children:
+          - direction: column
+            size: 60%
+            children:
+              - id: python
+                name: python
+                description: python3 / ipython / sage; pycryptodome, sympy, gmpy2, z3
+                focus: true
+                command: ""
+              - id: script
+                name: script
+                description: edit solve scripts — vim solve.py
+                command: ""
+          - direction: column
+            size: 40%
+            children:
+              - id: tools
+                name: tools
+                description: CyberChef CLI, dcode, factordb, RsaCtfTool
+                command: ""
+              - id: shell
+                name: shell
+                description: shell
+                command: ""
+
+  - id: forensics
+    name: forensics
+    emoji: 🔎
+    panes:
+      - direction: row
+        children:
+          - direction: column
+            size: 60%
+            children:
+              - id: analyze
+                name: analyze
+                description: file, binwalk, foremost, volatility3; exiftool, pdfparser, oletools
+                focus: true
+                command: ""
+              - id: hex
+                name: hex
+                description: xxd, hexyl, strings, entropy analysis
+                command: ""
+          - direction: column
+            size: 40%
+            children:
+              - id: carve
+                name: carve
+                description: extract embedded files, rebuild headers; steghide, zsteg, stegsolve, openstego
+                command: ""
+              - id: pcap
+                name: pcap
+                description: tshark, tcpdump -r, NetworkMiner
+                command: ""
+
+  - id: misc
+    name: misc
+    emoji: 🧰
+    panes:
+      - direction: row
+        children:
+          - direction: column
+            size: 50%
+            children:
+              - id: solve
+                name: solve
+                description: general purpose solve pane
+                focus: true
+                command: ""
+              - id: recon
+                name: recon
+                description: OSINT — sherlock, theHarvester, exiftool
+                command: ""
+          - direction: column
+            size: 50%
+            children:
+              - id: decode
+                name: decode
+                description: base64, rot13, CyberChef, dcode
+                command: ""
+              - id: shell
+                name: shell
+                description: shell
+                command: ""

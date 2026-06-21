@@ -9,8 +9,10 @@ from typing import Any
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-MANIFEST_DIR = REPO_ROOT / "manifest"
+PACKAGE_DIR = Path(__file__).resolve().parent
+# Manifest ships inside the package (works both in-repo and installed via uvx).
+# Override with TL_MANIFEST_DIR to point at an external manifest tree.
+MANIFEST_DIR = Path(os.environ.get("TL_MANIFEST_DIR", PACKAGE_DIR / "manifest"))
 DEFAULTS_FILE = MANIFEST_DIR / "defaults.yaml"
 WORKFLOWS_DIR = MANIFEST_DIR / "workflows"
 SCHEMA_FILE = MANIFEST_DIR / "schema.json"

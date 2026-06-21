@@ -5,19 +5,17 @@ Exits non-zero on any validation error.
 """
 from __future__ import annotations
 
+import json
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+from jsonschema import Draft7Validator
 
-import common  # noqa: E402
-from jsonschema import Draft7Validator  # noqa: E402
+from terminal_layouts import common
 
 
 def main() -> int:
-    schema = common.load_yaml(common.SCHEMA_FILE) if False else __import__("json").load(
-        common.SCHEMA_FILE.open()
-    )
+    with common.SCHEMA_FILE.open() as f:
+        schema = json.load(f)
     validator = Draft7Validator(schema)
 
     workflows = common.list_workflows()

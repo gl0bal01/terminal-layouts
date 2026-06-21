@@ -1,0 +1,78 @@
+# docker.yaml — Docker workflow session
+# Used by: tdk / tdocker (tmux) and zdk / zdk-new (zellij)
+# Launch in docker project dir: tdk .  /  zdk .
+
+id: docker
+name: Docker
+description: Docker workflow layout — compose, logs, and debug tabs
+prefix: "dk-"
+cwd: $paths.docker
+
+tabs:
+  - id: stack
+    name: stack
+    emoji: 🐳
+    focus: true
+    panes:
+      - direction: row
+        children:
+          - id: compose
+            name: compose
+            description: docker compose up -d, docker compose down, etc.
+            size: 60%
+            focus: true
+            command: ""
+          - direction: column
+            size: 40%
+            children:
+              - id: containers
+                name: containers
+                description: live container status (watch docker ps)
+                command: sh
+                args:
+                  - "-c"
+                  - 'watch -t -n 2 -c ''docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'''
+                close_on_exit: false
+              - id: images
+                name: images
+                description: docker images, docker system df, cleanup
+                command: ""
+
+  - id: logs
+    name: logs
+    emoji: 📜
+    panes:
+      - direction: row
+        children:
+          - id: logs
+            name: logs
+            description: docker compose logs -f / docker logs -f <container>
+            size: 70%
+            focus: true
+            command: ""
+          - id: stats
+            name: stats
+            size: 30%
+            command: docker
+            args:
+              - stats
+              - "--no-stream"
+              - "--format"
+              - 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'
+            close_on_exit: false
+
+  - id: debug
+    name: debug
+    emoji: 🔧
+    panes:
+      - direction: column
+        children:
+          - id: exec
+            name: exec
+            description: docker exec -it <container> sh
+            focus: true
+            command: ""
+          - id: build
+            name: build
+            description: docker compose build, Dockerfile edits
+            command: ""
