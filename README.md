@@ -9,6 +9,12 @@ Describe each workspace **once**; generate both `tmuxp` YAML and Zellij KDL from
 
 `make install` and every workflow below lands in your config — ready to launch.
 
+<br>
+
+![Zellij malware-analysis layout](docs/zellij-malware.gif)
+
+<sub>The <code>malware-analysis</code> workflow in Zellij — one manifest also generates the matching tmux layout.</sub>
+
 </div>
 
 ---
