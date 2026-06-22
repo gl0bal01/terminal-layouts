@@ -83,14 +83,24 @@ make list      # list available workflows
 make clean     # remove ./dist
 ```
 
-### Install without cloning (uvx)
+### Install without cloning
 
-If you'd rather not clone, [`uv`](https://docs.astral.sh/uv/) runs it directly (and bootstraps Python if missing):
+The package is on [PyPI](https://pypi.org/project/terminal-layouts/).
+
+**uvx** — run on demand, no install ([`uv`](https://docs.astral.sh/uv/) bootstraps Python if missing):
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh    # one-time
 uvx terminal-layouts install                       # write all layouts to ~/.config
 uvx terminal-layouts gen tmux docker               # or emit one to stdout
+```
+
+**pipx** — install the `tl` command persistently:
+
+```bash
+pipx install terminal-layouts
+tl install                                         # write all layouts to ~/.config
+tl gen zellij pentest                              # or emit one to stdout
 ```
 
 ---
