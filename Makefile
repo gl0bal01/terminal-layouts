@@ -16,10 +16,10 @@ help: ## Show this help
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  all        Generate tmux + zellij layouts for all workflows"
+	@echo "  all        Generate tmux, zellij and Herdr plans for all workflows"
 	@echo "  tmux       Generate tmux layouts (dist/tmux/*.yaml)"
-	@echo "  zellij     Generate zellij layouts (dist/zellij/*.kdl)
-	@echo "  herdr      Generate inert Herdr JSON plans (dist/herdr/*.json)""
+	@echo "  zellij     Generate zellij layouts (dist/zellij/*.kdl)"
+	@echo "  herdr      Generate inert Herdr JSON plans (dist/herdr/*.json)"
 	@echo "  schema     Validate manifests against schema.json"
 	@echo "  parity     Check tmux/zellij structural parity"
 	@echo "  test       schema + parity + idempotence"
@@ -54,8 +54,8 @@ zellij: ## Generate zellij layouts
 herdr: ## Generate Herdr workspace plans
 	@mkdir -p dist/herdr
 	@for wf in $(WORKFLOWS); do \
-		$(TL) gen herdr $wf > dist/herdr/$wf.json; \
-		echo "  generated: dist/herdr/$wf.json"; \
+		$(TL) gen herdr $$wf > dist/herdr/$$wf.json; \
+		echo "  generated: dist/herdr/$$wf.json"; \
 	done
 
 schema: ## Validate manifests against schema.json
