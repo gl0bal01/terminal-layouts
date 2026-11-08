@@ -8,7 +8,7 @@ WORKFLOWS := $(notdir $(basename $(wildcard $(MANIFEST_DIR)/workflows/*.yaml)))
 PYTHON := python3
 TL := $(PYTHON) -m terminal_layouts.cli
 
-.PHONY: help all tmux zellij schema parity test clean list install doctor setup
+.PHONY: help all tmux zellij herdr schema parity test clean list install doctor setup
 
 .DEFAULT_GOAL := help
 
@@ -18,7 +18,8 @@ help: ## Show this help
 	@echo "Targets:"
 	@echo "  all        Generate tmux + zellij layouts for all workflows"
 	@echo "  tmux       Generate tmux layouts (dist/tmux/*.yaml)"
-	@echo "  zellij     Generate zellij layouts (dist/zellij/*.kdl)"
+	@echo "  zellij     Generate zellij layouts (dist/zellij/*.kdl)
+	@echo "  herdr      Generate inert Herdr JSON plans (dist/herdr/*.json)""
 	@echo "  schema     Validate manifests against schema.json"
 	@echo "  parity     Check tmux/zellij structural parity"
 	@echo "  test       schema + parity + idempotence"
@@ -34,7 +35,7 @@ list: ## List available workflows
 	@echo "Workflows in $(MANIFEST_DIR)/workflows/:"
 	@for wf in $(WORKFLOWS); do echo "  $$wf"; done
 
-all: tmux zellij ## Generate all layouts
+all: tmux zellij herdr ## Generate all layouts
 
 tmux: ## Generate tmux layouts
 	@mkdir -p dist/tmux
@@ -50,6 +51,13 @@ zellij: ## Generate zellij layouts
 		echo "  generated: dist/zellij/$$wf.kdl"; \
 	done
 
+herdr: ## Generate Herdr workspace plans
+	@mkdir -p dist/herdr
+	@for wf in $(WORKFLOWS); do \
+		$(TL) gen herdr $wf > dist/herdr/$wf.json; \
+		echo "  generated: dist/herdr/$wf.json"; \
+	done
+
 schema: ## Validate manifests against schema.json
 	@$(TL) validate
 
@@ -58,6 +66,7 @@ parity: tmux zellij ## Check tmux/zellij structural parity
 
 test: schema parity ## Run all tests
 	@bash tests/test-idempotence.sh
+	@$(PYTHON) -m unittest discover -s tests -p 'test_herdr.py'
 	@echo "All tests passed."
 
 clean: ## Remove dist/
