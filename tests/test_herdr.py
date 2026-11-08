@@ -53,6 +53,24 @@ class HerdrTests(unittest.TestCase):
                 self.assertEqual(compiled["id"], workflow)
                 self.assertTrue(compiled["tabs"])
 
+    def test_herdr_matches_manifest_shared_pane_order(self):
+        def leaves(nodes):
+            result = []
+            for node in nodes:
+                result.extend([node["id"]] if "id" in node else leaves(node["children"]))
+            return result
+
+        for workflow_id in common.list_workflows():
+            with self.subTest(workflow=workflow_id):
+                manifest = common.load_workflow(workflow_id)
+                expected_tabs = [t for t in manifest["tabs"]
+                                 if not t.get("tmux_only") and not t.get("zellij_only")]
+                generated = gen_herdr.compile_plan(manifest, common.load_defaults())
+                self.assertEqual([t["id"] for t in expected_tabs],
+                                 [t["id"] for t in generated["tabs"]])
+                for original, compiled in zip(expected_tabs, generated["tabs"]):
+                    self.assertEqual(leaves(original["panes"]), leaves(compiled["panes"]))
+
     def test_launch_creates_nested_topology_without_running_commands(self):
         fake = FakeHerdr()
         self.assertEqual(launch_herdr.launch(self.plan, invoke=fake), "w1")
