@@ -15,7 +15,7 @@ import os
 import sys
 from pathlib import Path
 
-from terminal_layouts import __version__, common, gen_tmux, gen_zellij, validate
+from terminal_layouts import __version__, common, gen_tmux, gen_zellij, gen_herdr, launch_herdr, validate
 
 
 def _config_home() -> Path:
@@ -25,8 +25,23 @@ def _config_home() -> Path:
 def _cmd_gen(args: argparse.Namespace) -> int:
     if args.target == "tmux":
         sys.stdout.write(gen_tmux.render(args.workflow))
-    else:
+    elif args.target == "zellij":
         sys.stdout.write(gen_zellij.render(args.workflow))
+    else:
+        sys.stdout.write(gen_herdr.render(args.workflow))
+    return 0
+
+
+def _cmd_launch(args: argparse.Namespace) -> int:
+    plan = gen_herdr.compile_plan(common.load_workflow(args.workflow), common.load_defaults())
+    for warning in plan["warnings"]:
+        print(f"warning: {warning}", file=sys.stderr)
+    try:
+        workspace_id = launch_herdr.launch(plan, run_commands=args.run_commands)
+    except launch_herdr.HerdrError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"Herdr workspace created: {workspace_id}")
     return 0
 
 
@@ -72,9 +87,16 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     gen = sub.add_parser("gen", help="generate a layout")
-    gen.add_argument("target", choices=["tmux", "zellij"], help="output format")
+    gen.add_argument("target", choices=["tmux", "zellij", "herdr"], help="output format")
     gen.add_argument("workflow", help="workflow id (see `tl list`)")
     gen.set_defaults(func=_cmd_gen)
+
+    launch = sub.add_parser("launch", help="explicitly create a Herdr workspace")
+    launch.add_argument("target", choices=["herdr"])
+    launch.add_argument("workflow", help="workflow id")
+    launch.add_argument("--run-commands", action="store_true",
+                        help="also execute pane commands from manifest (opt-in)")
+    launch.set_defaults(func=_cmd_launch)
 
     lst = sub.add_parser("list", help="list available workflows")
     lst.set_defaults(func=_cmd_list)
