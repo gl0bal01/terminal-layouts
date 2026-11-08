@@ -4,7 +4,7 @@ The canonical YAML manifest can now produce **three** backends. Herdr is differe
 
 ## Quick start
 
-Prerequisites: Python 3.10+, project dependencies, and Herdr 0.8.2 or newer (tested against 0.8.2 and 0.9.5). Start Herdr normally or run its headless server in another terminal.
+Prerequisites: Python 3.10+, project dependencies, and Herdr 0.8.2 or newer (tested against 0.8.2 and 0.9.5). Start Herdr normally or run its headless server in another terminal. The Herdr backend is not in the PyPI release yet (0.1.0): until the next release, run these from a clone and replace `tl` with `python3 -m terminal_layouts.cli`.
 
 ~~~sh
 tl validate

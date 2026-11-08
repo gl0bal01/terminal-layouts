@@ -60,7 +60,7 @@ structural-equivalence test fails CI the moment the two ever describe different 
 git clone https://github.com/gl0bal01/terminal-layouts
 cd terminal-layouts
 
-make doctor     # check tmux / tmuxp / zellij are present
+make doctor     # check tmux / tmuxp / zellij / herdr are present
 make install    # write all 8 workflows to ~/.config (tmuxp + zellij)
 make setup      # install + print the two lines to add to ~/.zshrc
 ```
@@ -80,11 +80,15 @@ zellij --layout pentest              # Zellij
 ### Make targets
 
 ```bash
-make all       # generate layouts into ./dist (preview without installing)
+make all       # generate tmux + Zellij layouts and Herdr plans into ./dist (preview)
 make install   # write layouts to ~/.config (tmuxp + zellij)
 make doctor    # check required + recommended tools
 make setup     # install + print shell setup hint
-make test      # schema + parity + idempotence
+make test      # schema + parity + idempotence + Herdr unit tests
+make herdr     # generate Herdr JSON plans into ./dist/herdr
+make e2e-herdr # live test against a real, throwaway Herdr server
+make ci        # run every CI job locally (on HEAD)
+make hooks     # run `make ci` on each pushed commit (pre-push hook)
 make list      # list available workflows
 make clean     # remove ./dist
 ```
@@ -121,6 +125,8 @@ herdr server                         # start separately if needed
 tl launch herdr ai-agents            # create layout only (no agent commands)
 # opt-in: tl launch herdr ai-agents --run-commands
 ~~~
+
+Requires Herdr 0.8.2 or newer (tested against 0.8.2 and 0.9.5). The Herdr backend is not in the PyPI release yet (0.1.0): until the next release, run it from a clone with `python3 -m terminal_layouts.cli gen|launch herdr <workflow>`.
 
 The `ai-agents` workflow includes a coordinator, OpenCode, Pi, tests, research, and review panes. Agents are launched **manually**; API usage is never automatic. Pane topology, sizes, focus and directories are mapped, and a failed launch closes the workspace it created. `make e2e-herdr` checks every workflow against a real Herdr server, in CI too. `tl install` remains a tmuxp/Zellij installer.
 
@@ -232,7 +238,7 @@ source /path/to/terminal-layouts/shell/zellij-layouts.zsh
 Workflows live in `terminal_layouts/manifest/workflows/*.yaml`. Edit one, then:
 
 ```bash
-make test       # validate against the schema + check parity
+make test       # validate against the schema + check parity (+ Herdr unit tests)
 make install    # regenerate and write both outputs
 ```
 
@@ -265,8 +271,10 @@ tabs:
 ```
 
 Key fields:
-- `direction: row` → panes side-by-side. Maps to Zellij `split_direction="vertical"`, tmux `main-vertical`.
-- `direction: column` → panes stacked. Maps to Zellij `split_direction="horizontal"`.
+- `direction: row` → panes side-by-side. Maps to Zellij `split_direction="vertical"`, tmux `main-vertical`, Herdr `pane split --direction right`.
+- `direction: column` → panes stacked. Maps to Zellij `split_direction="horizontal"`, Herdr `pane split --direction down`.
+- `size` → Zellij `size`, tmux `main-pane-width`, Herdr `--ratio` (unsized siblings share the rest).
+- `cwd` on a tab → every backend; on a pane → honoured by Herdr only (relative paths resolve against the tab).
 - `command` + `args[]` → a program with discrete arguments (use `args` when an argument contains spaces, e.g. a `--format` string).
 - `tmux_only` / `zellij_only` on a tab → emit for one target only.
 - `$paths.*` → reference a root defined in `defaults.yaml`.
@@ -276,21 +284,28 @@ Key fields:
 ## How it works
 
 ```
-manifest/workflows/*.yaml ──┬──► gen_tmux  ──► ~/.config/tmuxp/*.yaml   (tmuxp)
-   (single source of truth) └──► gen_zellij ──► ~/.config/zellij/layouts/*.kdl
-                                      │
-                                      └──► parity test: both must describe the same workspace
+manifest/workflows/*.yaml ──┬──► gen_tmux   ──► ~/.config/tmuxp/*.yaml   (tmuxp)
+   (single source of truth) ├──► gen_zellij ──► ~/.config/zellij/layouts/*.kdl
+                            │        │
+                            │        └──► parity test: both must describe the same workspace
+                            └──► gen_herdr  ──► JSON plan ──► tl launch herdr ──► running Herdr server
+                                                                   │
+                                     live e2e test: server state ◄─┘ must match the manifest
 ```
 
 ```
 terminal-layouts/
 ├── terminal_layouts/             # Python package (the `tl` CLI)
 │   ├── cli.py  common.py  gen_tmux.py  gen_zellij.py  validate.py
+│   ├── gen_herdr.py  launch_herdr.py
 │   └── manifest/                 # source of truth (bundled in the wheel)
 │       ├── schema.json  defaults.yaml
-│       └── workflows/*.yaml      # the 7 workflows
+│       └── workflows/*.yaml      # the 8 workflows
 ├── shell/                        # tmux + Zellij zsh aliases
-├── tests/                        # parity + idempotence
+├── tests/                        # parity + idempotence + Herdr (unit + live)
+├── docs/                         # ai-agents.md (Herdr backend)
+├── scripts/ci-local.sh           # every CI job, locally (`make ci`)
+├── .githooks/pre-push            # `make hooks`
 ├── pyproject.toml  Makefile
 ```
 
@@ -298,9 +313,10 @@ terminal-layouts/
 
 - **Schema** — every manifest validated against `schema.json`.
 - **Parity** — tmux and Zellij outputs must be structurally equivalent (same tabs, same panes, same names).
-- **Idempotence** — regenerating produces byte-identical output.
+- **Idempotence** — regenerating produces byte-identical output (Herdr plans included).
+- **Herdr, live** — every workflow is launched on a real, throwaway Herdr server and the resulting tabs, panes, split ratios, focus and directories must match the manifest.
 
-All three run in CI (Python 3.10 + 3.12) on every push and PR.
+All of them run in CI on every push and PR (Python 3.10 + 3.12, plus a live Herdr job on a pinned, sha256-checked release). `make ci` runs the same jobs locally; `make hooks` runs it before each push.
 
 ## License
 
