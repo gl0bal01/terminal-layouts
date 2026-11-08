@@ -111,6 +111,23 @@ tl gen zellij pentest                              # or emit one to stdout
 
 ---
 
+## Herdr backend (experimental)
+
+The same manifest can also generate a deterministic JSON execution plan for [Herdr](https://herdr.dev/), a live terminal workspace manager:
+
+~~~bash
+tl gen herdr ai-agents              # inspect JSON; does not start anything
+herdr server                         # start separately if needed
+tl launch herdr ai-agents            # create layout only (no agent commands)
+# opt-in: tl launch herdr ai-agents --run-commands
+~~~
+
+The `ai-agents` workflow includes a coordinator, OpenCode, Pi, tests, research, and review panes. Agents are launched **manually**; API usage is never automatic. Pane topology is mapped, but exact pane sizes and pane-level focus are not promised. `tl install` remains a tmuxp/Zellij installer.
+
+See [AI-agent workspaces](docs/ai-agents.md) for safety limits, CLI requirements, and tests.
+
+---
+
 ## The 7 workflows
 
 Each workflow is a set of named, emoji-tagged tabs with purpose-built panes. Structure and emojis are
