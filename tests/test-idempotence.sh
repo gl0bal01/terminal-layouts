@@ -20,8 +20,12 @@ for wf_yaml in "$WORKFLOWS_DIR"/*.yaml; do
     $TL gen zellij "$wf_id" > /tmp/tl-zellij-2.kdl
     diff -q /tmp/tl-zellij-1.kdl /tmp/tl-zellij-2.kdl >/dev/null || fail "zellij $wf_id not idempotent"
 
+    $TL gen herdr "$wf_id" > /tmp/tl-herdr-1.json
+    $TL gen herdr "$wf_id" > /tmp/tl-herdr-2.json
+    diff -q /tmp/tl-herdr-1.json /tmp/tl-herdr-2.json >/dev/null || fail "herdr $wf_id not idempotent"
+
     echo "  OK: $wf_id idempotent"
 done
 
-rm -f /tmp/tl-tmux-*.yaml /tmp/tl-zellij-*.kdl
+rm -f /tmp/tl-tmux-*.yaml /tmp/tl-zellij-*.kdl /tmp/tl-herdr-*.json
 echo "Idempotence check passed."
