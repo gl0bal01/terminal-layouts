@@ -36,6 +36,9 @@ def _cmd_launch(args: argparse.Namespace) -> int:
     plan = gen_herdr.compile_plan(common.load_workflow(args.workflow), common.load_defaults())
     for warning in plan["warnings"]:
         print(f"warning: {warning}", file=sys.stderr)
+    for missing in launch_herdr.missing_dirs(plan):
+        print(f"warning: directory {missing} does not exist; Herdr will open those panes in $HOME",
+              file=sys.stderr)
     try:
         workspace_id = launch_herdr.launch(plan, run_commands=args.run_commands)
     except launch_herdr.HerdrError as exc:

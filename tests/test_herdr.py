@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -22,6 +24,9 @@ class FakeHerdr:
 
     def __call__(self, cmd):
         self.calls.append(cmd)
+        if cmd[:2] == ["status", "server"]:
+            # Shape of `herdr status server --json` (0.8.2 and 0.9.5).
+            return {"status": "running", "running": True, "compatible": True}
         if cmd[:2] == ["workspace", "create"]:
             result = self._tab()
             result["result"]["workspace"] = {"workspace_id": "w1"}
@@ -34,13 +39,36 @@ class FakeHerdr:
         return {"result": {}}
 
 
+# Two-level tree: sized row [main | column of three], focus on a split-created
+# leaf, and a pane-level cwd using a $paths reference.
+SIZED = {"id": "sized", "name": "Sized", "cwd": "/w", "tabs": [
+    {"id": "a", "name": "a", "panes": [{"direction": "row", "children": [
+        {"id": "main", "size": "60%"},
+        {"direction": "column", "size": "40%", "children": [
+            {"id": "x", "cwd": "$paths.ops/x"},
+            {"id": "y", "focus": True},
+            {"id": "z"},
+        ]},
+    ]}]},
+    {"id": "b", "name": "b", "cwd": "/b", "focus": True, "panes": [{"id": "solo"}]},
+]}
+
+
+def _splits(calls):
+    return [c for c in calls if c[:2] == ["pane", "split"]]
+
+
+def _opt(cmd, flag):
+    return cmd[cmd.index(flag) + 1]
+
+
 class HerdrTests(unittest.TestCase):
     def setUp(self):
         self.plan = json.loads(gen_herdr.render("ai-agents"))
 
     def test_plan_is_deterministic_and_safe(self):
         self.assertEqual(gen_herdr.render("ai-agents"), gen_herdr.render("ai-agents"))
-        self.assertEqual(self.plan["version"], 1)
+        self.assertEqual(self.plan["version"], 2)
         self.assertEqual([t["id"] for t in self.plan["tabs"]],
                          ["cockpit", "implement", "research", "review"])
         self.assertEqual(self.plan["cwd"], "$PWD")
@@ -87,6 +115,116 @@ class HerdrTests(unittest.TestCase):
         runs = [c for c in fake.calls if c[:2] == ["pane", "run"]]
         self.assertEqual(len(runs), 2)
         self.assertTrue(all("watch -n 5" in cmd[-1] for cmd in runs))
+
+    def test_stopped_server_rejected_before_workspace_create(self):
+        fake = FakeHerdr()
+        stopped = {"status": "not_running", "running": False, "compatible": None}
+
+        def invoke(cmd):
+            return stopped if cmd[:2] == ["status", "server"] else fake(cmd)
+
+        with self.assertRaisesRegex(launch_herdr.HerdrError, "unavailable"):
+            launch_herdr.launch(self.plan, invoke=invoke)
+        self.assertEqual(fake.calls, [])
+
+    def test_sizes_map_to_chained_split_ratios(self):
+        self.assertEqual(launch_herdr._ratios([{"size": 60}, {"size": 40}]), [0.6])
+        thirds = launch_herdr._ratios([{}, {}, {}])
+        self.assertAlmostEqual(thirds[0], 1 / 3)
+        self.assertAlmostEqual(thirds[1], 1 / 2)
+        # Unsized siblings share what the sized ones leave: 50 / 25 / 25.
+        self.assertEqual(launch_herdr._ratios([{"size": 50}, {}, {}]), [0.5, 0.5])
+        # Oversubscribed sizes are normalised instead of producing ratios >= 1.
+        self.assertEqual(launch_herdr._ratios([{"size": 90}, {"size": 90}]), [0.5])
+        fake = FakeHerdr()
+        plan = gen_herdr.compile_plan(SIZED, common.load_defaults())
+        launch_herdr.launch(plan, invoke=fake)
+        self.assertEqual([_opt(c, "--ratio") for c in _splits(fake.calls)],
+                         ["0.6", "0.3333", "0.5"])
+
+    def test_pane_focus_maps_to_the_split_creating_that_pane(self):
+        fake = FakeHerdr()
+        plan = gen_herdr.compile_plan(SIZED, common.load_defaults())
+        launch_herdr.launch(plan, invoke=fake)
+        flags = ["--focus" if "--focus" in c else "--no-focus" for c in _splits(fake.calls)]
+        # splits create: column(x), y, z  -> only y is focused.
+        self.assertEqual(flags, ["--no-focus", "--focus", "--no-focus"])
+        self.assertEqual(fake.calls[-1], ["tab", "focus", "t2"])
+
+    def test_every_pane_gets_an_explicit_resolved_cwd(self):
+        fake = FakeHerdr()
+        plan = gen_herdr.compile_plan(SIZED, common.load_defaults())
+        ops = common.resolve_path("$paths.ops", common.load_defaults())
+        self.assertEqual(plan["tabs"][0]["panes"][0]["children"][1]["children"][0]["cwd"],
+                         f"{ops}/x")
+        launch_herdr.launch(plan, invoke=fake)
+        self.assertEqual(_opt(fake.calls[1], "--cwd"), "/w")
+        self.assertEqual([_opt(c, "--cwd") for c in _splits(fake.calls)],
+                         [f"{ops}/x", "/w", "/w"])
+        tab_b = next(c for c in fake.calls if c[:2] == ["tab", "create"])
+        self.assertEqual(_opt(tab_b, "--cwd"), "/b")
+
+    def test_pwd_is_expanded_at_launch_time(self):
+        fake = FakeHerdr()
+        launch_herdr.launch(self.plan, invoke=fake)
+        self.assertEqual(_opt(fake.calls[1], "--cwd"), os.getcwd())
+        self.assertEqual(launch_herdr._cwd("$PWD/sub"), os.getcwd() + "/sub")
+
+    def test_failure_closes_the_partial_workspace(self):
+        fake = FakeHerdr()
+
+        def invoke(cmd):
+            if cmd[:2] == ["tab", "create"]:
+                raise launch_herdr.HerdrError("boom")
+            return fake(cmd)
+
+        with self.assertRaisesRegex(launch_herdr.HerdrError, "boom.*w1 was closed"):
+            launch_herdr.launch(self.plan, invoke=invoke)
+        self.assertEqual(fake.calls[-1], ["workspace", "close", "w1"])
+
+    def test_relative_and_braced_cwds_resolve_against_parent(self):
+        plan = {"cwd": "/w", "root_direction": "row", "tabs": [
+            {"cwd": "app", "panes": [{"id": "a", "cwd": None}, {"id": "b", "cwd": "web"}]},
+            {"cwd": None, "panes": [{"id": "c", "cwd": "/abs"}]},
+        ]}
+        self.assertEqual(launch_herdr._pane_cwds(plan), ["/w/app", "/w/app/web", "/abs"])
+        self.assertEqual(launch_herdr._cwd("${PWD}/x"), os.getcwd() + "/x")
+        # No cwd anywhere: where `tl` runs, like tmuxp and Zellij.
+        self.assertEqual(launch_herdr._tab_cwd({"cwd": None}, {"cwd": None}), os.getcwd())
+
+    def test_impossible_sizes_are_warned(self):
+        wf = {"id": "w", "name": "w", "tabs": [
+            {"id": "a", "name": "a", "panes": [{"direction": "row", "children": [
+                {"id": "x", "size": "60%"}, {"id": "y", "size": "60%"}]}]},
+            {"id": "b", "name": "b", "panes": [{"id": "p", "size": "100%"}, {"id": "q"}]},
+            {"id": "c", "name": "c", "panes": [{"direction": "row", "children": [
+                {"id": "ok", "size": "30%"}, {"id": "rest"}]}]},
+        ]}
+        self.assertEqual(gen_herdr.compile_plan(wf, common.load_defaults())["warnings"], [
+            "tab a.panes.0: child sizes sum to 120%; Herdr scales them to fit",
+            "tab b.panes: child sizes sum to 100%; Herdr scales them to fit",
+        ])
+
+    def test_close_failure_does_not_mask_original_error(self):
+        fake = FakeHerdr()
+
+        def invoke(cmd):
+            if cmd[:2] == ["tab", "create"]:
+                raise launch_herdr.HerdrError("boom")
+            if cmd[:2] == ["workspace", "close"]:
+                raise OSError("gone")
+            return fake(cmd)
+
+        with self.assertRaisesRegex(launch_herdr.HerdrError, "boom.*could not be closed: gone"):
+            launch_herdr.launch(self.plan, invoke=invoke)
+
+    def test_missing_dirs_are_reported(self):
+        with tempfile.TemporaryDirectory() as present:
+            plan = {"cwd": present, "root_direction": "row", "tabs": [
+                {"cwd": None, "panes": [{"id": "a", "cwd": None},
+                                       {"id": "b", "cwd": present + "/nope"}]},
+            ]}
+            self.assertEqual(launch_herdr.missing_dirs(plan), [present + "/nope"])
 
     def test_missing_binary_is_clean_failure(self):
         with patch("terminal_layouts.launch_herdr.shutil.which", return_value=None):
