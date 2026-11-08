@@ -39,7 +39,7 @@ structural-equivalence test fails CI the moment the two ever describe different 
 - **Single source of truth** — edit one field, regenerate both multiplexers. No copy-paste, no dialect translation.
 - **Drift is impossible** — JSON Schema + parity + idempotence run in CI on every change.
 - **Switch multiplexers freely** — the same workspace exists in tmux *and* Zellij. Try Zellij without rebuilding your muscle memory or your layouts.
-- **Batteries included** — 7 production workflows (dev, DevOps, security, research) ship ready to use.
+- **Batteries included** — 8 workflows (dev, DevOps, security, research) ship ready to use.
 - **Reproducible everywhere** — `make install` on any machine reproduces your exact workspaces; nothing to copy by hand.
 - **Zero lock-in** — outputs are plain `tmuxp`/Zellij files; the manifest is portable YAML.
 
@@ -61,7 +61,7 @@ git clone https://github.com/gl0bal01/terminal-layouts
 cd terminal-layouts
 
 make doctor     # check tmux / tmuxp / zellij are present
-make install    # write all 7 workflows to ~/.config (tmuxp + zellij)
+make install    # write all 8 workflows to ~/.config (tmuxp + zellij)
 make setup      # install + print the two lines to add to ~/.zshrc
 ```
 
@@ -128,7 +128,7 @@ See [AI-agent workspaces](docs/ai-agents.md) for safety limits, CLI requirements
 
 ---
 
-## The 7 workflows
+## The 8 workflows
 
 Each workflow is a set of named, emoji-tagged tabs with purpose-built panes. Structure and emojis are
 **canonical from the Zellij side**; the tmux output is generated to match exactly.
@@ -151,6 +151,9 @@ Each project tab carries its own agent + git + logs trio.
 | 🏠 cockpit | monitor · shell · usage |
 | 🔍 brand-search · 🛒 scout-contracts · 🏗️ contracts-agents · 🏗️ content-factory-contracts · 📦 x-bot | claude · git · logs (per project) |
 | 🧪 scratch | two free shells |
+
+### `ai-agents` — AI agent workbench
+A coordinated shell workspace with cockpit, implementation, research and review tabs. OpenCode, Pi, Claude Code and Codex are started manually so API usage remains explicit. The same manifest works with tmuxp, Zellij and Herdr (see the [Herdr backend](docs/ai-agents.md)).
 
 ### 🐳 `docker` — containers & Compose
 Compose control on the left; **live** `docker ps` and `docker stats` watchers on the right; a debug tab
