@@ -72,7 +72,7 @@ def main() -> int:
     # Verify each expected tab name appears in the KDL
     for exp_tab in expected_zellij_tabs:
         exp_name = exp_tab.get("name", exp_tab["id"])
-        if f'tab name="' not in zellij_kdl:
+        if 'tab name="' not in zellij_kdl:
             sys.exit("zellij: malformed KDL — no tab declarations found")
         # The tab name in KDL is "emoji name" or just "name"
         # Check that the name appears in some tab declaration

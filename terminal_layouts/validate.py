@@ -6,7 +6,6 @@ Exits non-zero on any validation error.
 from __future__ import annotations
 
 import json
-import sys
 
 from jsonschema import Draft7Validator
 
