@@ -64,7 +64,7 @@ schema: ## Validate manifests against schema.json
 parity: tmux zellij ## Check tmux/zellij structural parity
 	@bash tests/test-parity.sh
 
-test: schema parity ## Run all tests
+test: schema parity herdr ## Run all tests
 	@bash tests/test-idempotence.sh
 	@$(PYTHON) -m unittest discover -s tests -p 'test_herdr.py'
 	@echo "All tests passed."
