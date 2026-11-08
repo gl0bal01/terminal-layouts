@@ -4,7 +4,7 @@ The canonical YAML manifest can now produce **three** backends. Herdr is differe
 
 ## Quick start
 
-Prerequisites: Python 3.10+, project dependencies, and a recent Herdr CLI. Start Herdr normally or run its headless server in another terminal.
+Prerequisites: Python 3.10+, project dependencies, and Herdr 0.8.2 or newer (tested against 0.8.2 and 0.9.5). Start Herdr normally or run its headless server in another terminal.
 
 ~~~sh
 tl validate
@@ -14,6 +14,8 @@ tl gen herdr ai-agents > ai-agents.herdr.json
 herdr server                     # in another terminal, unless already running
 tl launch herdr ai-agents        # create only workspace/tabs/panes
 ~~~
+
+Run inside a Herdr pane, `tl launch` targets that session; otherwise it targets the default session (or `HERDR_SOCKET_PATH`).
 
 Agent panes start as ordinary shells. Enter **opencode**, **pi**, **claude** or **codex** manually in the corresponding pane. No agent process, provider API call, or shell watcher is started automatically by this backend.
 
@@ -27,24 +29,25 @@ This opt-in applies to *all* nonempty commands in the chosen workflow. Review th
 
 ## How the adapter works
 
-1. Validate the manifest against the existing JSON Schema and resolve directory references.
+1. Validate the manifest against the existing JSON Schema and resolve `$paths.*` / `~` references (tab and pane level).
 2. Generate the versioned JSON plan with stable ordering. Repeat runs produce byte-identical output for the same environment.
-3. Check the Herdr executable and running server; never auto-start a server.
-4. Create the workspace, first tab and root pane, then create subsequent tabs.
-5. Split panes using Herdr's real CLI and returned IDs, preserving *nested topology* by creating sibling boundaries before descending into child trees.
-6. Rename panes, focus the chosen tab, and optionally execute pane commands.
+3. Check the Herdr executable and that `herdr status server --json` reports a running, protocol-compatible server; never auto-start a server.
+4. Create the workspace, first tab and root pane, then create subsequent tabs. Every pane is created with an explicit `--cwd`: its own pane `cwd`, else the tab's, else the workflow's, else the directory you launch from. Relative paths are anchored at the parent directory (pane → tab → workflow), and `$PWD` / `${PWD}` always mean the directory you launch from.
+5. Split panes using Herdr's real CLI and returned IDs, preserving *nested topology* by creating sibling boundaries before descending into child trees. Manifest `size` percentages become `--ratio` values; unsized siblings share what is left equally. Sizes that cannot add up (over 100 %, or leaving nothing for unsized siblings) are scaled to fit and listed as plan warnings.
+6. Rename panes, give the manifest's focused pane the tab focus (`split --focus`), focus the chosen tab, and optionally execute pane commands.
+
+If any step fails, the workspace created by that run is closed again and the error names the failing Herdr command, so a failed launch leaves the server as it was.
 
 Herdr's CLI command forms and response IDs are documented at https://herdr.dev/tui/docs/cli-reference/ . The installed version of **herdr --help** is authoritative.
 
 ## Limitations and safety
 
-- Herdr pane *size*, pane-level focus and *close_on_exit* have no exact mapping in this version; the JSON plan lists warnings rather than silently asserting parity.
-- Multi-child pane splits preserve tree structure, not necessarily exact fractional widths/heights.
+- *close_on_exit: true* is not honoured: like the tmuxp and Zellij outputs, a pane stays open after its command exits. The plan lists a warning when a manifest asks for it.
 - Tabs labeled *tmux_only* or *zellij_only* are omitted from Herdr plans.
-- A pane-level directory incompatible with its existing root terminal directory is rejected at launch. Prefer tab-level *cwd*.
+- A pane directory that does not exist is reported as a warning before launch; Herdr itself would silently open that pane in `$HOME`.
 - Commands are not run by default. Agent identity, agent lifecycle, token use, cost tracking, Git worktree creation and agent coordination remain Herdr/agent responsibilities, **not** capabilities of this adapter.
 - Re-running *tl launch* creates another workspace; only *tl gen* is idempotent.
-- An error during layout creation may leave a partial workspace for inspection; the launcher never closes preexisting workspaces or deletes worktrees.
+- The launcher never closes preexisting workspaces or deletes worktrees; it only closes a workspace it just created and failed to finish.
 - *tl install* still installs only tmuxp and Zellij layouts. Herdr uses its CLI rather than a static install directory.
 
 For safe parallel development, use separate Git worktrees per writing agent and perform an explicit review before merging.
@@ -52,8 +55,9 @@ For safe parallel development, use separate Git worktrees per writing agent and 
 ## Validation
 
 ~~~sh
-make test
-python3 -m unittest discover -s tests -p 'test_herdr.py' -v
+make test        # plan determinism, every manifest, mocked-CLI adapter tests
+make e2e-herdr   # live: real Herdr server, every workflow (no mocks)
+make ci          # every CI job locally on HEAD; `make hooks` runs it on each pushed commit
 ~~~
 
-Tests cover plan determinism, all canonical manifests, nested splitting and shell/agent command opt-in. They use a mocked Herdr CLI and therefore do **not** certify a live Herdr server integration; a real-server smoke test is recommended before merging.
+`make e2e-herdr` downloads the pinned Herdr release (sha256-checked, linux-x86_64), or uses `HERDR_BIN=/path/to/herdr` (also forwarded by `make ci`). It starts a throwaway server with its own HOME, XDG config/state/cache/data/runtime directories and socket, so a Herdr session you are working in is never touched. For every workflow it checks against the live server: tab labels and order, active tab, pane names, split directions and ratios, on-screen sibling order, focused pane, pane directories and that no command runs without `--run-commands`. It also checks `--run-commands`, rollback after a mid-launch failure, the stopped-server error and the missing-directory warning. CI runs the same target on every push and pull request.

@@ -18,3 +18,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install pyyaml jsonschema
       - run: make test
+
+  e2e-herdr:
+    # Real Herdr server (pinned release, sha256-checked) — no mocked CLI.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml jsonschema
+      - run: make e2e-herdr

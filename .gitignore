@@ -12,6 +12,7 @@ venv/
 
 # Tooling state
 .omc/
+.cache/
 
 # Editor
 *.swp

@@ -122,7 +122,7 @@ tl launch herdr ai-agents            # create layout only (no agent commands)
 # opt-in: tl launch herdr ai-agents --run-commands
 ~~~
 
-The `ai-agents` workflow includes a coordinator, OpenCode, Pi, tests, research, and review panes. Agents are launched **manually**; API usage is never automatic. Pane topology is mapped, but exact pane sizes and pane-level focus are not promised. `tl install` remains a tmuxp/Zellij installer.
+The `ai-agents` workflow includes a coordinator, OpenCode, Pi, tests, research, and review panes. Agents are launched **manually**; API usage is never automatic. Pane topology, sizes, focus and directories are mapped, and a failed launch closes the workspace it created. `make e2e-herdr` checks every workflow against a real Herdr server, in CI too. `tl install` remains a tmuxp/Zellij installer.
 
 See [AI-agent workspaces](docs/ai-agents.md) for safety limits, CLI requirements, and tests.
 

@@ -8,7 +8,14 @@ WORKFLOWS := $(notdir $(basename $(wildcard $(MANIFEST_DIR)/workflows/*.yaml)))
 PYTHON := python3
 TL := $(PYTHON) -m terminal_layouts.cli
 
-.PHONY: help all tmux zellij herdr schema parity test clean list install doctor setup
+# Herdr release used by the live end-to-end test (CI and `make ci`).
+# Bump both lines together: sha256 of herdr-linux-x86_64 from the release.
+HERDR_VERSION := 0.9.5
+HERDR_SHA256 := 14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d
+# Override with your own build: make e2e-herdr HERDR_BIN=/path/to/herdr
+HERDR_BIN ?= .cache/herdr/$(HERDR_VERSION)/herdr
+
+.PHONY: help all tmux zellij herdr schema parity test e2e-herdr ci hooks clean list install doctor setup
 
 .DEFAULT_GOAL := help
 
@@ -22,7 +29,10 @@ help: ## Show this help
 	@echo "  herdr      Generate inert Herdr JSON plans (dist/herdr/*.json)"
 	@echo "  schema     Validate manifests against schema.json"
 	@echo "  parity     Check tmux/zellij structural parity"
-	@echo "  test       schema + parity + idempotence"
+	@echo "  test       schema + parity + idempotence + Herdr unit tests"
+	@echo "  e2e-herdr  Live test against a real, throwaway Herdr server"
+	@echo "  ci         Run every CI job locally (scripts/ci-local.sh)"
+	@echo "  hooks      Run 'make ci' before every git push"
 	@echo "  list       List available workflows"
 	@echo "  install    Install layouts into ~/.config (tmuxp + zellij)"
 	@echo "  doctor     Check required tools are installed"
@@ -69,6 +79,24 @@ test: schema parity herdr ## Run all tests
 	@$(PYTHON) -m unittest discover -s tests -p 'test_herdr.py'
 	@echo "All tests passed."
 
+$(HERDR_BIN):
+	@if [ "$$(uname -sm)" != "Linux x86_64" ]; then \
+		echo "error: pinned Herdr download is linux-x86_64 only; run make e2e-herdr HERDR_BIN=/path/to/herdr" >&2; exit 1; fi
+	@mkdir -p $(@D)
+	curl -fsSL -o $@.tmp https://github.com/herdrdev/herdr/releases/download/v$(HERDR_VERSION)/herdr-linux-x86_64
+	echo "$(HERDR_SHA256)  $@.tmp" | sha256sum -c -
+	chmod +x $@.tmp && mv $@.tmp $@
+
+e2e-herdr: $(HERDR_BIN) ## Live test against a real, throwaway Herdr server
+	HERDR_BIN=$(abspath $(HERDR_BIN)) $(PYTHON) -m unittest discover -s tests -p herdr_live.py -v
+
+ci: ## Run every CI job locally
+	@bash scripts/ci-local.sh
+
+hooks: ## Run `make ci` before every git push
+	git config core.hooksPath .githooks
+	@echo "pre-push hook enabled (.githooks/pre-push)"
+
 clean: ## Remove dist/
 	rm -rf dist/
 	@echo "Removed dist/"
@@ -80,7 +108,7 @@ doctor: ## Check required + recommended tools are installed
 	@missing=0; \
 	if command -v python3 >/dev/null 2>&1; then echo "  ok: python3 (required)"; \
 	else echo "  MISSING: python3 (required)"; missing=1; fi; \
-	for bin in tmux tmuxp zellij; do \
+	for bin in tmux tmuxp zellij herdr; do \
 		if command -v $$bin >/dev/null 2>&1; then echo "  ok: $$bin"; \
 		else echo "  recommended (not found): $$bin"; fi; \
 	done; \
