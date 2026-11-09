@@ -83,7 +83,11 @@ class LiveMux(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         subprocess.run(["tmux", "kill-server"], capture_output=True)
+        subprocess.run(["tmux", "-L", "zellij-pty", "kill-server"], capture_output=True)
         subprocess.run(["zellij", "kill-all-sessions", "-y"], capture_output=True)
+        # Zellij servers exit asynchronously; removing their runtime dir first leaves debris.
+        wait_for(lambda: not subprocess.run(["zellij", "list-sessions", "--short", "--no-formatting"],
+                                            capture_output=True, text=True).stdout.strip(), timeout=10)
         os.environ.clear()
         os.environ.update(cls.saved_env)
         shutil.rmtree(cls.root, ignore_errors=True)
@@ -160,10 +164,15 @@ class LiveMux(unittest.TestCase):
 
     def assert_zellij_session(self, session: str, workflow_id: str, cwd: Path) -> None:
         self.assertTrue(wait_for(lambda: session in self.zellij_sessions()), self.zellij_sessions())
-        tabs = expected_tabs(workflow_id, "zellij")
-        names = subprocess.run(["zellij", "-s", session, "action", "query-tab-names"],
-                               capture_output=True, text=True).stdout.splitlines()
-        self.assertEqual(names, [t["label"] for t in tabs])
+        want = [t["label"] for t in expected_tabs(workflow_id, "zellij")]
+
+        def names() -> list[str]:
+            return subprocess.run(["zellij", "-s", session, "action", "query-tab-names"],
+                                  capture_output=True, text=True).stdout.splitlines()
+
+        # The session is listed before its layout has finished creating every tab.
+        wait_for(lambda: names() == want)
+        self.assertEqual(names(), want)
         layout = subprocess.run(["zellij", "-s", session, "action", "dump-layout"],
                                 capture_output=True, text=True).stdout
         self.assertIn(f'cwd "{cwd}"', layout)
