@@ -1,4 +1,5 @@
-# zsh tab completion for `tl` and the generated shortcuts. Inlined by `tl init zsh`.
+# zsh tab completion for `tl` and the generated <backend>-<workflow> commands.
+# Inlined by `tl init zsh`.
 # Registration waits for compinit if it has not run yet (any ~/.zshrc order works).
 
 _tl() {
@@ -6,7 +7,7 @@ _tl() {
   _arguments -C \
     '(- *)--version[show version and exit]' \
     '(- *)'{-h,--help}'[show help and exit]' \
-    '1:command:((gen\:"print a layout or Herdr plan" launch\:"open a workflow (Herdr, tmux, Zellij)" init\:"print shell shortcuts + completion" list\:"list workflows" validate\:"validate manifests" install\:"install tmuxp + Zellij layouts"))' \
+    '1:command:((gen\:"print a layout or Herdr plan" launch\:"open a workflow (Herdr, tmux, Zellij)" init\:"print shell commands + completion" list\:"list workflows" validate\:"validate manifests" install\:"install tmuxp + Zellij layouts"))' \
     '*::arg:->args' && return
   local -a workflows
   case $line[1] in
@@ -35,17 +36,19 @@ _tl() {
   esac
 }
 
-_tlc_opts_herdr=('--label[workspace name]:name: ' '--run-commands[also run the manifest pane commands]')
-_tlc_opts_tmux=('--label[session name]:name: ' '(-d --detach)'{-d,--detach}'[create without attaching]')
-_tlc_opts_zellij=('--label[session name]:name: ')
-_tlc_launch_herdr()  { _arguments '1::directory (. = here):_directories' $_tlc_opts_herdr; }
-_tlc_launch_tmux()   { _arguments '1::directory (. = here):_directories' $_tlc_opts_tmux; }
-_tlc_launch_zellij() { _arguments '1::directory (. = here):_directories' $_tlc_opts_zellij; }
-_tlc_new_herdr()  { _arguments '1:name: ' $_tlc_opts_herdr; }
-_tlc_new_tmux()   { _arguments '1:name: ' $_tlc_opts_tmux; }
-_tlc_new_zellij() { _arguments '1:name: ' $_tlc_opts_zellij; }
+_tlc_opts=('(1)--new[create <workflow directory>/NAME and open it there]:name: '
+           '--label[session / workspace name]:name: ')
+_tlc_launch_herdr()  {
+  _arguments '(--new)1::directory (. = here):_directories' $_tlc_opts \
+    '--run-commands[also run the manifest pane commands]'
+}
+_tlc_launch_tmux()   {
+  _arguments '(--new)1::directory (. = here):_directories' $_tlc_opts \
+    '(-d --detach)'{-d,--detach}'[create the session without attaching]'
+}
+_tlc_launch_zellij() { _arguments '(--new)1::directory (. = here):_directories' $_tlc_opts; }
 
-_tlc_hks() {
+_tlc_herdr_workspaces() {
   local -a ids
   ids=(${(f)"$(herdr workspace list 2>/dev/null | python3 -c '
 import json, sys

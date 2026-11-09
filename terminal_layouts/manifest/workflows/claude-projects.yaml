@@ -5,7 +5,6 @@ id: claude-projects
 name: Claude Projects
 description: Multi-project Claude session with cockpit, per-project dev tabs, and scratch
 prefix: "cp-"
-shortcut: ai
 cwd: $paths.projects
 
 tabs:

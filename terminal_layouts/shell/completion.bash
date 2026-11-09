@@ -1,4 +1,5 @@
-# bash tab completion for `tl` and the generated shortcuts. Inlined by `tl init bash`.
+# bash tab completion for `tl` and the generated <backend>-<workflow> commands.
+# Inlined by `tl init bash`.
 # Works with bash 3.2+ (macOS): no mapfile; compopt is optional (bash 4+).
 # shellcheck disable=SC2207  # COMPREPLY=($(compgen ...)): words never contain spaces
 
@@ -59,26 +60,19 @@ _tl_complete() {
   COMPREPLY=($(compgen -W "$words" -- "$cur"))
 }
 
-# Launchers: optional directory ("." = here) first, then options.
+# <backend>-<workflow>: an optional directory ("." = here), --new NAME, options.
 _tlc_launch() {
-  local cur="${COMP_WORDS[COMP_CWORD]}"
-  if (( COMP_CWORD == 1 )) && [[ "$cur" != -* ]]; then _tlc_dirs "$cur"; return; fi
-  COMPREPLY=($(compgen -W "$(_tlc_opts "$1")" -- "$cur"))
-}
-# *-new: a free-form name first, then options.
-_tlc_new() {
+  local cur="${COMP_WORDS[COMP_CWORD]}" prev="${COMP_WORDS[COMP_CWORD-1]}"
   COMPREPLY=()
-  (( COMP_CWORD == 1 )) && return
-  COMPREPLY=($(compgen -W "$(_tlc_opts "$1")" -- "${COMP_WORDS[COMP_CWORD]}"))
+  case "$prev" in --new|--label) return ;; esac
+  if [[ "$cur" != -* ]]; then _tlc_dirs "$cur"; return; fi
+  COMPREPLY=($(compgen -W "--new $(_tlc_opts "$1")" -- "$cur"))
 }
 _tlc_launch_herdr()  { _tlc_launch herdr; }
 _tlc_launch_tmux()   { _tlc_launch tmux; }
 _tlc_launch_zellij() { _tlc_launch zellij; }
-_tlc_new_herdr()  { _tlc_new herdr; }
-_tlc_new_tmux()   { _tlc_new tmux; }
-_tlc_new_zellij() { _tlc_new zellij; }
 
-_tlc_hks() {
+_tlc_herdr_workspaces() {
   local ids
   ids="$(herdr workspace list 2>/dev/null | python3 -c '
 import json, sys

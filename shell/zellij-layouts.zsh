@@ -1,7 +1,7 @@
 # zellij-layouts.zsh — kept so existing `source .../shell/zellij-layouts.zsh` lines keep working.
-# Shortcuts and tab completion now come from `tl init`; one line in ~/.zshrc (or
+# Commands (tmux-pentest, ...) and tab completion come from `tl init`; one line in ~/.zshrc (or
 # ~/.bashrc) covers every backend and is faster than sourcing several files:
-#   eval "$(command tl init zsh)"                  # t* (tmux), z* (Zellij), h* (Herdr)
+#   eval "$(command tl init zsh)"                  # tmux-*, zellij-*, herdr-*
 #   eval "$(command tl init zsh --backends zellij)"    # only this backend
 if ! command -v tl >/dev/null 2>&1; then
   printf '%s\n' "terminal-layouts: tl not found — pipx install terminal-layouts" >&2

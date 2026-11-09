@@ -3,7 +3,6 @@ id: ai-agents
 name: AI Agent Workbench
 description: Parallel coding agents with review and git monitoring
 prefix: ai-
-shortcut: ag
 cwd: $PWD
 tabs:
   - id: cockpit

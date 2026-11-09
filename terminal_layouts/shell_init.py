@@ -1,10 +1,11 @@
-"""`tl init zsh|bash`: shell shortcuts + tab completion generated from the manifest.
+"""`tl init zsh|bash`: shell commands + tab completion generated from the manifest.
 
-Every workflow with a `shortcut:` gets, for each backend prefix (t = tmux,
-z = Zellij, h = Herdr):  <p><shortcut> [DIR|.]   and   <p><shortcut>-new NAME,
-both thin wrappers around `tl launch`. A name that already exists in the
-user's shell (command, alias, function, builtin) is kept and reported instead
-of being clobbered, unless --force.
+Every workflow gets one readable command per backend, `<backend>-<workflow>`
+(tmux-pentest, zellij-malware-analysis, herdr-ai-agents ...): a thin wrapper
+around `tl launch <backend> <workflow> "$@"`, so `.`, DIR, --new NAME and
+--label work everywhere. `layouts` prints everything that was defined.
+A name that already exists in the user's shell (command, alias, function,
+builtin) is kept and reported instead of being clobbered, unless --force.
 """
 from __future__ import annotations
 
@@ -15,40 +16,36 @@ from pathlib import Path
 from terminal_layouts import common
 
 BACKENDS = ("tmux", "zellij", "herdr")
-PREFIX = {"tmux": "t", "zellij": "z", "herdr": "h"}
-TITLE = {"tmux": "tmux", "zellij": "Zellij", "herdr": "Herdr"}
-EXTRA = {"tmux": "[-d]", "zellij": "", "herdr": "[--run-commands]"}
+CORE = {"tmux": "t", "zellij": "z", "herdr": "h"}  # t = tmux, z = zellij, h = herdr
+OPTIONS = {"tmux": "[-d]", "zellij": "", "herdr": "[--run-commands]"}
 
-# (suffix, shell body, help text, completion function or None)
+# (name suffix, shell body, help text, completion function or None)
 SESSIONS = {
     "tmux": [
         ("ls", 'tmux list-sessions "$@"', "list sessions", None),
-        ("a", 'tmux attach -t "$@"', "attach <session>", "_tlc_tmux_sessions"),
-        ("ks", 'tmux kill-session -t "$@"', "kill <session>", "_tlc_tmux_sessions"),
-        ("ka", 'tmux kill-server "$@"', "kill every session", None),
+        ("attach", 'tmux attach -t "$@"', "attach <session>", "_tlc_tmux_sessions"),
+        ("kill", 'tmux kill-session -t "$@"', "kill <session>", "_tlc_tmux_sessions"),
+        ("kill-all", 'tmux kill-server "$@"', "kill every session", None),
     ],
     "zellij": [
         ("ls", 'zellij list-sessions "$@"', "list sessions", None),
-        ("a", 'zellij attach "$@"', "attach <session>", "_tlc_zellij_sessions"),
-        ("ks", 'zellij kill-session "$@"', "kill <session> (running)", "_tlc_zellij_sessions"),
-        ("ka", 'zellij kill-all-sessions "$@"', "kill every session", None),
-        ("ds", 'zellij delete-session "$@"', "delete <session> (exited)", "_tlc_zellij_sessions"),
-        ("da", 'zellij delete-all-sessions "$@"', "delete every exited session", None),
+        ("attach", 'zellij attach "$@"', "attach <session>", "_tlc_zellij_sessions"),
+        ("kill", 'zellij kill-session "$@"', "kill <session> (running)", "_tlc_zellij_sessions"),
+        ("kill-all", 'zellij kill-all-sessions "$@"', "kill every session", None),
+        ("delete", 'zellij delete-session "$@"', "delete <session> (exited)", "_tlc_zellij_sessions"),
+        ("delete-all", 'zellij delete-all-sessions "$@"', "delete every exited session", None),
     ],
     "herdr": [
         ("ls", None, "list workspaces (* = focused)", None),
-        ("ks", None, "close <workspace-id>...", "_tlc_hks"),
+        ("close", None, "close <workspace-id>...", "_tlc_herdr_workspaces"),
     ],
 }
-# Old hand-written Zellij names kept working: name -> workflow id.
-LEGACY = {"zellij": {"zp": "claude-projects", "zo": "project"}}
-RESERVED = ({s for entries in SESSIONS.values() for s, *_ in entries} | {"h", "help"}
-            | {name[1:] for names in LEGACY.values() for name in names})
-_NAME = re.compile(r"^[a-z][a-z0-9]*$")
+# A workflow named like a session helper would produce the same command name.
+RESERVED = {suffix for entries in SESSIONS.values() for suffix, *_ in entries}
 _WORKFLOW_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 
-HERDR_HLS = r'''local out
-  out="$(herdr workspace list)" || return $?
+HERDR_LS = r'''local out
+  out="$(command herdr workspace list)" || return $?
   printf '%s' "$out" | python3 -c '
 import json, sys
 for w in json.load(sys.stdin)["result"]["workspaces"]:
@@ -57,10 +54,10 @@ for w in json.load(sys.stdin)["result"]["workspaces"]:
     print(f"{mark} {wid:<6} {label}  ({tabs} tabs, {panes} panes)")
 '
 '''
-HERDR_HKS = r'''if [ $# -eq 0 ]; then echo "Usage: hks <workspace-id>...   (ids from hls)" >&2; return 2; fi
+HERDR_CLOSE = r'''if [ $# -eq 0 ]; then echo "Usage: herdr-close <workspace-id>...   (ids from herdr-ls)" >&2; return 2; fi
   local id rc=0
   for id in "$@"; do
-    if herdr workspace close "$id" >/dev/null; then echo "closed $id"; else rc=1; fi
+    if command herdr workspace close "$id" >/dev/null; then echo "closed $id"; else rc=1; fi
   done
   return $rc
 '''
@@ -81,6 +78,26 @@ _tl_claim() {{
 }}
 '''
 
+# `layouts` shows the workflow table once, then the part of every backend that
+# was loaded (several `tl init --backends X` evals add up).
+LAYOUTS = r'''_tl_help_workflows() {{
+  command cat <<'__TL_HELP__'
+{text}
+__TL_HELP__
+}}
+if _tl_claim layouts; then
+  function layouts {{
+  _tl_help_workflows
+  local b
+  for b in tmux zellij herdr; do
+    if type "_tl_help_$b" >/dev/null 2>&1; then echo; "_tl_help_$b"; fi
+  done
+  echo
+  echo "Tab completes every command: type tmux- / zellij- / herdr- then Tab."
+  }}
+fi
+'''
+
 EPILOGUE = r'''if [ -n "$_TL_SKIPPED" ] && [ -z "${TL_INIT_QUIET:-}" ]; then
   printf 'terminal-layouts: kept your existing%s (tl init --force replaces them; TL_INIT_QUIET=1 hides this)\n' \
     "$_TL_SKIPPED" >&2
@@ -97,22 +114,16 @@ def _workflows() -> list[dict]:
     defaults = common.load_defaults()
     out = []
     for wf_id in common.list_workflows():
+        # Workflow ids become function names that every shell parses at startup.
+        if not _WORKFLOW_ID.match(wf_id):
+            raise ValueError(f"{wf_id}: invalid workflow id (lowercase letters, digits, '-')")
+        if wf_id in RESERVED:
+            raise ValueError(f"{wf_id}: workflow id clashes with a session command name")
         wf = common.load_workflow(wf_id)
-        shortcut = wf.get("shortcut")
-        if not shortcut:
-            continue
-        # These end up unquoted in code every shell runs at startup: check them here too.
-        if not _WORKFLOW_ID.match(wf_id) or not _NAME.match(str(shortcut)):
-            raise ValueError(f"{wf_id}: invalid workflow id or shortcut {shortcut!r} (see tl validate)")
-        if shortcut in RESERVED:
-            raise ValueError(f"{wf_id}: shortcut {shortcut!r} is reserved for session helpers")
-        if any(w["shortcut"] == shortcut for w in out):
-            raise ValueError(f"{wf_id}: shortcut {shortcut!r} is used twice (see tl validate)")
         cwd = common.resolve_cwd(wf, defaults) or "$PWD"
-        out.append({"id": wf_id, "shortcut": shortcut, "prefix": wf.get("prefix", ""),
+        out.append({"id": wf_id, "prefix": wf.get("prefix", ""),
                     "description": wf.get("description", ""),
-                    "dir": "the current directory" if cwd == "$PWD" else _display(cwd),
-                    "base": "./" if cwd == "$PWD" else _display(cwd) + "/"})
+                    "dir": "current directory" if cwd == "$PWD" else _display(cwd)})
     return out
 
 
@@ -122,45 +133,52 @@ def _define(name: str, body: str) -> str:
     return f"if _tl_claim {name}; then\n  function {name} {{\n  {body.rstrip()}\n  }}\nfi\n"
 
 
+def _help(text: str, name: str) -> str:
+    return f"{name}() {{\n  command cat <<'__TL_HELP__'\n{text}\n__TL_HELP__\n}}\n"
+
+
+def _workflow_help(workflows: list[dict]) -> str:
+    width = max(len(w["id"]) for w in workflows)
+    dir_width = max(len(w["dir"]) for w in workflows)
+    rows = [f"  {w['id']:<{width}}  {w['dir']:<{dir_width}}  {(w['prefix'] or '-'):<5} {w['description']}"
+            for w in workflows]
+    return "\n".join([
+        "Terminal layouts  (terminal-layouts)",
+        "  <backend>-<workflow> [DIR|.] [--new NAME] [--label NAME]   e.g. tmux-pentest --new acme",
+        "    .  / DIR     open there instead of the workflow directory",
+        "    --new NAME   create <workflow directory>/NAME and open it there",
+        "    --label NAME session / workspace name (default: <prefix><directory name>, e.g. pt-acme)",
+        "",
+        f"  {'workflow':<{width}}  {'directory':<{dir_width}}  prefix description",
+        *rows,
+    ])
+
+
 def _backend(backend: str, workflows: list[dict]) -> tuple[str, list[str]]:
-    p, out, regs, help_rows = PREFIX[backend], [], [], []
-    out.append(f"\n# --- {TITLE[backend]} ---\n")
-    out.append(f"if _tl_claim {p}; then alias {p}='{backend}'; fi\n")
+    out, regs = [f"\n# --- {backend} ---\n"], []
+    core = CORE[backend]
+    out.append(f"if _tl_claim {core}; then alias {core}='{backend}'; fi\n")
     for wf in workflows:
-        name = p + wf["shortcut"]
+        name = f"{backend}-{wf['id']}"
         out.append(_define(name, f'command tl launch {backend} {wf["id"]} "$@"'))
-        out.append(_define(f"{name}-new",
-                           f'if [ $# -eq 0 ]; then echo "Usage: {name}-new <name> [options]" >&2; return 2; fi\n'
-                           f'  command tl launch {backend} {wf["id"]} --new "$@"'))
-        regs += [f"_tlc_launch_{backend}:{name}", f"_tlc_new_{backend}:{name}-new"]
-        help_rows.append(f"  {name + ' [DIR|.]':<20} {wf['id']} in {wf['dir']} — {wf['description']}")
-        help_rows.append(f"  {name + '-new <name>':<20} {wf['base']}<name>, named {wf['prefix']}<name>")
-    for legacy, wf_id in LEGACY.get(backend, {}).items():
-        if any(w["id"] == wf_id for w in workflows):
-            out.append(_define(legacy, f'command tl launch {backend} {wf_id} "$@"'))
-            regs.append(f"_tlc_launch_{backend}:{legacy}")
-            help_rows.append(f"  {legacy + ' [DIR|.]':<20} same as above for {wf_id} (older name)")
-    session_rows = []
+        regs.append(f"_tlc_launch_{backend}:{name}")
+    rows = []
     for suffix, body, text, completer in SESSIONS[backend]:
-        name = p + suffix
+        name = f"{backend}-{suffix}"
         if backend == "herdr":
-            body = HERDR_HLS if suffix == "ls" else HERDR_HKS
+            body = HERDR_LS if suffix == "ls" else HERDR_CLOSE
         out.append(_define(name, body))
         if completer:
             regs.append(f"{completer}:{name}")
-        session_rows.append(f"  {name:<20} {text}")
-    help_text = "\n".join([
-        f"{TITLE[backend]} shortcuts  (terminal-layouts)",
-        f"  Each runs: tl launch {backend} <workflow> [DIR|.] [--new NAME] [--label NAME] {EXTRA[backend]}".rstrip(),
-        "  DIR / . = run there instead of the manifest directory, named <prefix><dir name>.",
-        "", *help_rows, "", *session_rows, "",
-        f"  {p:<20} {backend}",
-        "Agents are never started for you: type opencode / pi / claude / codex in a pane."
-        if backend == "herdr" else "Layouts are generated fresh from the manifest on every launch.",
+        rows.append(f"  {name:<18} {text}")
+    launchers = " ".join(f"{backend}-{w['id']}" for w in workflows)
+    extra = f"   options: {OPTIONS[backend]}" if OPTIONS[backend] else ""
+    text = "\n".join([
+        f"{backend}{extra}   ({core} = {backend})",
+        f"  open:  {launchers}",
+        *rows,
     ])
-    out.append(f"_tl_help_{backend}() {{\n  command cat <<'__TL_HELP__'\n{help_text}\n__TL_HELP__\n}}\n")
-    for name in (f"{p}h", f"{p}help"):
-        out.append(_define(name, f"_tl_help_{backend}"))
+    out.append(_help(text, f"_tl_help_{backend}"))
     return "".join(out), regs
 
 
@@ -171,11 +189,11 @@ def render(shell: str, backends: list[str] | None = None, force: bool = False) -
     workflows = _workflows()
     parts = [PRELUDE.format(shell=shell, force="1" if force else "")]
     for backend in chosen:
-        code, backend_regs = _backend(backend, workflows)
+        code, regs = _backend(backend, workflows)
         parts.append(code)
         # One variable per backend, overwritten on re-eval: never grows.
-        parts.append(f'_TLC_REGS_{backend}="{" ".join(backend_regs)}"\n')
-    parts.append("\n")
+        parts.append(f'_TLC_REGS_{backend}="{" ".join(regs)}"\n')
+    parts.append("\n" + LAYOUTS.format(text=_workflow_help(workflows)) + "\n")
     parts.append((Path(__file__).parent / "shell" / f"completion.{shell}").read_text(encoding="utf-8"))
     parts.append("\n" + EPILOGUE)
     return "".join(parts)

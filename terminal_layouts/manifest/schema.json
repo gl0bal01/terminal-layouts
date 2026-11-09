@@ -26,11 +26,6 @@
       "default": "",
       "description": "Session name prefix (e.g. 'dk-', 'ctf-')"
     },
-    "shortcut": {
-      "type": "string",
-      "pattern": "^[a-z][a-z0-9]*$",
-      "description": "Shell shortcut stem: `tl init` defines t<shortcut>, z<shortcut>, h<shortcut> (+ -new)"
-    },
     "cwd": {
       "type": "string",
       "description": "Working directory. Supports $paths.* references, $PWD, or literal paths."

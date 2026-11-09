@@ -1,8 +1,8 @@
-"""`tl init zsh|bash` shortcuts and tab completion, evaluated in real bash AND zsh.
+"""`tl init zsh|bash` commands and tab completion, evaluated in real bash AND zsh.
 
 `tl launch`, tmux, zellij and herdr are stubbed (they only record their
 arguments); `tl init` and `tl list` run for real. tests/herdr_live.py and
-tests/mux_live.py run the shortcuts against real servers.
+tests/mux_live.py run the commands against real servers.
 """
 from __future__ import annotations
 
@@ -17,9 +17,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SHELLS = ["bash", "zsh"]
-SHORTCUTS = {"ai-agents": "ag", "claude-projects": "ai", "ctf": "ctf", "docker": "dk",
-             "malware-analysis": "ma", "osint": "os", "pentest": "pt", "project": "project"}
-PREFIX = {"tmux": "t", "zellij": "z", "herdr": "h"}
+BACKENDS = ["tmux", "zellij", "herdr"]
+WORKFLOWS = sorted(p.stem for p in (REPO / "terminal_layouts/manifest/workflows").glob("*.yaml"))
 
 TL_STUB = f"""#!/bin/sh
 case "$1" in
@@ -49,7 +48,7 @@ class ShellInit(unittest.TestCase):
         cls.bin = cls.root / "bin"
         cls.bin.mkdir()
         (cls.bin / "tl").write_text(TL_STUB)
-        for tool in ("tmux", "zellij", "herdr"):
+        for tool in BACKENDS:
             (cls.bin / tool).write_text(TOOL_STUB)
         for stub in cls.bin.iterdir():
             stub.chmod(0o755)
@@ -82,26 +81,25 @@ class ShellInit(unittest.TestCase):
                              capture_output=True, text=True)
         return out, log.read_text().splitlines()
 
-    def test_every_workflow_gets_launch_and_new_shortcuts_per_backend(self):
+    def test_every_workflow_gets_a_backend_workflow_command(self):
         for shell in SHELLS:
-            for backend, p in PREFIX.items():
-                for wf, sc in SHORTCUTS.items():
-                    with self.subTest(shell=shell, name=p + sc):
-                        out, log = self.run_sh(shell, f"{p}{sc} . --label x; {p}{sc}-new acme")
+            for backend in BACKENDS:
+                for wf in WORKFLOWS:
+                    with self.subTest(shell=shell, name=f"{backend}-{wf}"):
+                        out, log = self.run_sh(shell, f"{backend}-{wf} . --label x; {backend}-{wf} --new acme")
                         self.assertEqual(out.returncode, 0, out.stderr)
                         self.assertEqual(log, [f"tl [launch] [{backend}] [{wf}] [.] [--label] [x]",
                                                f"tl [launch] [{backend}] [{wf}] [--new] [acme]"])
 
-    def test_session_helpers_legacy_names_and_core_aliases(self):
+    def test_session_commands_and_core_aliases(self):
         cases = {
-            "tls": ["tmux [list-sessions]"], "ta dev": ["tmux [attach] [-t] [dev]"],
-            "tks dev": ["tmux [kill-session] [-t] [dev]"], "tka": ["tmux [kill-server]"],
-            "zls": ["zellij [list-sessions]"], "za s": ["zellij [attach] [s]"],
-            "zks s": ["zellij [kill-session] [s]"], "zka": ["zellij [kill-all-sessions]"],
-            "zds s": ["zellij [delete-session] [s]"], "zda": ["zellij [delete-all-sessions]"],
-            "hks w1 w2": ["herdr [workspace] [close] [w1]", "herdr [workspace] [close] [w2]"],
-            "zp": ["tl [launch] [zellij] [claude-projects]"],
-            "zo /srv": ["tl [launch] [zellij] [project] [/srv]"],
+            "tmux-ls": ["tmux [list-sessions]"], "tmux-attach dev": ["tmux [attach] [-t] [dev]"],
+            "tmux-kill dev": ["tmux [kill-session] [-t] [dev]"], "tmux-kill-all": ["tmux [kill-server]"],
+            "zellij-ls": ["zellij [list-sessions]"], "zellij-attach s": ["zellij [attach] [s]"],
+            "zellij-kill s": ["zellij [kill-session] [s]"], "zellij-kill-all": ["zellij [kill-all-sessions]"],
+            "zellij-delete s": ["zellij [delete-session] [s]"],
+            "zellij-delete-all": ["zellij [delete-all-sessions]"],
+            "herdr-close w1 w2": ["herdr [workspace] [close] [w1]", "herdr [workspace] [close] [w2]"],
             "eval t new -d": ["tmux [new] [-d]"], "eval z ls": ["zellij [ls]"],
             "eval h status": ["herdr [status]"],
         }
@@ -112,69 +110,73 @@ class ShellInit(unittest.TestCase):
                     self.assertEqual(out.returncode, 0, out.stderr)
                     self.assertEqual(log, expected)
 
-    def test_usage_errors_run_nothing(self):
-        for shell in SHELLS:
-            for command in ("tpt-new", "zma-new", "hag-new", "hks"):
-                with self.subTest(shell=shell, command=command):
-                    out, log = self.run_sh(shell, command)
-                    self.assertEqual(out.returncode, 2)
-                    self.assertIn("Usage:", out.stderr)
-                    self.assertEqual(log, [])
-
-    def test_hls_and_generated_help(self):
+    def test_old_short_names_are_gone(self):
         for shell in SHELLS:
             with self.subTest(shell=shell):
-                out, _ = self.run_sh(shell, "hls; echo ---; th; echo ---; zhelp; echo ---; hh")
+                out, _ = self.run_sh(shell, "for n in tpt zma hag hks th zp zo tpt-new; do "
+                                            "type $n >/dev/null 2>&1 && echo $n; done; true")
+                self.assertEqual(out.stdout.split(), [])
+
+    def test_herdr_close_without_ids_is_a_usage_error(self):
+        for shell in SHELLS:
+            with self.subTest(shell=shell):
+                out, log = self.run_sh(shell, "herdr-close")
+                self.assertEqual(out.returncode, 2)
+                self.assertIn("Usage: herdr-close", out.stderr)
+                self.assertEqual(log, [])
+
+    def test_herdr_ls_and_layouts_help(self):
+        for shell in SHELLS:
+            with self.subTest(shell=shell):
+                out, _ = self.run_sh(shell, "herdr-ls; echo ---; layouts")
                 self.assertEqual(out.returncode, 0, out.stderr)
-                hls, tmux, zellij, herdr = out.stdout.split("---\n")
-                self.assertEqual(hls.splitlines(), ["* w1     pt-acme  (4 tabs, 15 panes)",
-                                                    "  w2     a:b  (1 tabs, 1 panes)"])
-                self.assertIn("tpt [DIR|.]", tmux)
-                self.assertIn("pentest in ~/ops/pentest", tmux)
-                self.assertIn("tpt-new <name>", tmux)
-                self.assertIn("~/ops/pentest/<name>, named pt-<name>", tmux)
-                self.assertIn("tproject [DIR|.]", tmux)
-                self.assertIn("project in the current directory", tmux)
-                self.assertIn("zo [DIR|.]", zellij)
-                self.assertIn("hks", herdr)
-                self.assertIn("--run-commands", herdr)
+                ls, help_text = out.stdout.split("---\n")
+                self.assertEqual(ls.splitlines(), ["* w1     pt-acme  (4 tabs, 15 panes)",
+                                                   "  w2     a:b  (1 tabs, 1 panes)"])
+                for needle in ("<backend>-<workflow> [DIR|.] [--new NAME] [--label NAME]",
+                               "pentest           ~/ops/pentest      pt-",
+                               "project           current directory  -",
+                               "tmux-pentest", "zellij-malware-analysis", "herdr-ai-agents",
+                               "tmux-attach", "zellij-delete-all", "herdr-close",
+                               "options: [--run-commands]", "type tmux- / zellij- / herdr- then Tab"):
+                    self.assertIn(needle, help_text)
 
     def test_existing_names_are_kept_and_reported(self):
-        hh = self.bin / "hh"
-        hh.write_text("#!/bin/sh\necho real-hh\n")
-        hh.chmod(0o755)
-        setup = "alias z='echo zoxide'\nfunction tpt { echo mine; }"
+        external = self.bin / "herdr-ls"
+        external.write_text("#!/bin/sh\necho real-herdr-ls\n")
+        external.chmod(0o755)
+        setup = "alias z='echo zoxide'\nfunction tmux-pentest { echo mine; }"
         try:
             for shell in SHELLS:
                 with self.subTest(shell=shell):
-                    out, log = self.run_sh(shell, "eval z; tpt; hh; zpt", setup=setup)
+                    out, log = self.run_sh(shell, "eval z; tmux-pentest; herdr-ls; zellij-pentest", setup=setup)
                     self.assertEqual(out.returncode, 0, out.stderr)
-                    self.assertEqual(out.stdout.splitlines(), ["zoxide", "mine", "real-hh"])
+                    self.assertEqual(out.stdout.splitlines(), ["zoxide", "mine", "real-herdr-ls"])
                     self.assertEqual(log, ["tl [launch] [zellij] [pentest]"])
-                    self.assertIn("kept your existing tpt z hh", out.stderr)
+                    self.assertIn("kept your existing tmux-pentest z herdr-ls", out.stderr)
                 with self.subTest(shell=shell, mode="quiet"):
                     out, _ = self.run_sh(shell, "true", setup=setup, env={"TL_INIT_QUIET": "1"})
                     self.assertEqual(out.stderr, "")
                 with self.subTest(shell=shell, mode="force"):
-                    out, log = self.run_sh(shell, "eval z ls; tpt; hh | head -1", setup=setup,
+                    out, log = self.run_sh(shell, "eval z ls; tmux-pentest; herdr-ls | head -1", setup=setup,
                                            init='eval "$(tl init {shell} --force)"')
                     self.assertEqual(out.returncode, 0, out.stderr)
                     self.assertEqual(log, ["zellij [ls]", "tl [launch] [tmux] [pentest]"])
-                    self.assertIn("Herdr shortcuts", out.stdout)
+                    self.assertEqual(out.stdout.splitlines(), ["* w1     pt-acme  (4 tabs, 15 panes)"])
                     self.assertEqual(out.stderr, "")
         finally:
-            hh.unlink()
+            external.unlink()
 
     def test_aliased_tl_and_cat_do_not_break_anything(self):
         # oh-my-zsh's tmux plugin: alias tl='tmux list-sessions'; bat users: alias cat=bat.
         setup = "alias tl='echo ALIASED'; alias cat='echo CAT'"
         for shell in SHELLS:
             with self.subTest(shell=shell):
-                out, log = self.run_sh(shell, "tpt-new acme; th | head -1", setup=setup,
+                out, log = self.run_sh(shell, "tmux-pentest --new acme; layouts | head -1", setup=setup,
                                        init='eval "$(command tl init {shell})"')
                 self.assertEqual(out.returncode, 0, out.stderr)
                 self.assertEqual(log, ["tl [launch] [tmux] [pentest] [--new] [acme]"])
-                self.assertEqual(out.stdout.splitlines(), ["tmux shortcuts  (terminal-layouts)"])
+                self.assertEqual(out.stdout.splitlines(), ["Terminal layouts  (terminal-layouts)"])
 
     def test_completion_registry_does_not_grow_on_re_eval(self):
         for shell in SHELLS:
@@ -189,21 +191,22 @@ class ShellInit(unittest.TestCase):
         for shell in SHELLS:
             with self.subTest(shell=shell):
                 out, log = self.run_sh(
-                    shell, f'eval "$(tl init {shell} --backends tmux)"; tpt; '
-                           "type zpt >/dev/null 2>&1 || echo no-zpt",
+                    shell, f'eval "$(tl init {shell} --backends tmux)"; tmux-pentest; '
+                           "type zellij-pentest >/dev/null 2>&1 || echo no-zellij; layouts | grep -c '^zellij'",
                     init='eval "$(tl init {shell} --backends tmux)"')
-                self.assertEqual(out.returncode, 0, out.stderr)
-                self.assertEqual(out.stdout.split(), ["no-zpt"])
+                self.assertEqual(out.stdout.split(), ["no-zellij", "0"])
                 self.assertEqual(out.stderr, "")  # second eval: our own names, no warning
                 self.assertEqual(log, ["tl [launch] [tmux] [pentest]"])
 
     def test_old_shell_files_still_work(self):
-        sources = "; ".join(f"source {REPO}/shell/{b}-layouts.zsh" for b in PREFIX)
+        sources = "; ".join(f"source {REPO}/shell/{b}-layouts.zsh" for b in BACKENDS)
         for shell in SHELLS:
             with self.subTest(shell=shell):
-                out, log = self.run_sh(shell, "tpt; zpt; hpt; type tag >/dev/null && echo ok", init=sources)
+                out, log = self.run_sh(shell, "tmux-pentest; zellij-pentest; herdr-pentest; "
+                                              "layouts | grep -cE '^(tmux|zellij|herdr)'", init=sources)
                 self.assertEqual(out.returncode, 0, out.stderr)
                 self.assertEqual(out.stderr, "")
+                self.assertEqual(out.stdout.split(), ["3"])  # help covers every sourced backend
                 self.assertEqual(log, ["tl [launch] [tmux] [pentest]", "tl [launch] [zellij] [pentest]",
                                        "tl [launch] [herdr] [pentest]"])
             with self.subTest(shell=shell, tl="missing"):
@@ -221,28 +224,32 @@ class ShellInit(unittest.TestCase):
                 self.assertIn("`tl init` failed", out.stderr)
 
     def test_zsh_completion_is_registered_for_owned_names_only(self):
-        script = ("print -r -- ${_comps[tl]} ${_comps[tpt]} ${_comps[tpt-new]} ${_comps[ta]} "
-                  "${_comps[zo]} ${_comps[hks]} ${_comps[hag]} z=${_comps[z]:-none}")
+        script = ("print -r -- ${_comps[tl]} ${_comps[tmux-pentest]} ${_comps[tmux-attach]} "
+                  "${_comps[zellij-kill]} ${_comps[herdr-close]} ${_comps[herdr-ai-agents]} z=${_comps[z]:-none}")
         out, _ = self.run_sh("zsh", script, setup="alias z='echo zoxide'", env={"TL_INIT_QUIET": "1"})
-        self.assertEqual(out.stdout.split(), ["_tl", "_tlc_launch_tmux", "_tlc_new_tmux", "_tlc_tmux_sessions",
-                                              "_tlc_launch_zellij", "_tlc_hks", "_tlc_launch_herdr", "z=none"])
+        self.assertEqual(out.stdout.split(), ["_tl", "_tlc_launch_tmux", "_tlc_tmux_sessions",
+                                              "_tlc_zellij_sessions", "_tlc_herdr_workspaces",
+                                              "_tlc_launch_herdr", "z=none"])
 
     def test_zsh_completion_waits_for_compinit_silently(self):
         script = ('eval "$(tl init zsh)"\nprint -r -- before=${_comps[tl]:-none}\n'
                   "autoload -Uz compinit; compinit -u -D\n"
                   "for f in $precmd_functions; do $f; done\n"  # what the next prompt runs
-                  "print -r -- after=$_comps[tpt] hooked=${precmd_functions[(I)_tlc_register_deferred]:-0}")
+                  "print -r -- after=${_comps[tmux-pentest]} "
+                  "hooked=${precmd_functions[(I)_tlc_register_deferred]:-0}")
         env = {"PATH": f"{self.bin}{os.pathsep}/usr/bin{os.pathsep}/bin", "HOME": str(self.root)}
         out = subprocess.run(["zsh", "-f", "-c", script], capture_output=True, text=True, env=env)
         self.assertEqual(out.stdout.split(), ["before=none", "after=_tlc_launch_tmux", "hooked=0"])
         self.assertEqual(out.stderr, "")
 
     def test_bash_completion_is_registered_for_owned_names_only(self):
-        out, _ = self.run_sh("bash", "complete -p tl tpt tpt-new ta hks zo; complete -p z || echo z-none",
+        out, _ = self.run_sh("bash", "complete -p tl tmux-pentest tmux-attach herdr-close zellij-kill; "
+                                     "complete -p z || echo z-none",
                              setup="alias z='echo zoxide'", env={"TL_INIT_QUIET": "1"})
-        for line in ("complete -F _tl_complete tl", "complete -F _tlc_launch_tmux tpt",
-                     "complete -F _tlc_new_tmux tpt-new", "complete -F _tlc_tmux_sessions ta",
-                     "complete -F _tlc_hks hks", "complete -F _tlc_launch_zellij zo", "z-none"):
+        for line in ("complete -F _tl_complete tl", "complete -F _tlc_launch_tmux tmux-pentest",
+                     "complete -F _tlc_tmux_sessions tmux-attach",
+                     "complete -F _tlc_herdr_workspaces herdr-close",
+                     "complete -F _tlc_zellij_sessions zellij-kill", "z-none"):
             self.assertIn(line, out.stdout + out.stderr)
 
     def test_bash_completion_candidates(self):
@@ -270,13 +277,14 @@ class ShellInit(unittest.TestCase):
         self.assertEqual(complete("tl launch tmux pentest --cwd My",
                                   'compopt() { echo "compopt $1 $2"; }; _tl_complete', cwd=self.root),
                          ["compopt -o filenames", "My Project"])
-        self.assertEqual(complete("tpt My", "_tlc_launch_tmux", cwd=self.root), ["My Project"])
-        self.assertEqual(complete("tpt . --", "_tlc_launch_tmux"), ["--label", "--detach"])
-        self.assertEqual(complete("hpt . --", "_tlc_launch_herdr"), ["--label", "--run-commands"])
-        self.assertEqual(complete("hpt-new ", "_tlc_new_herdr"), [])
-        self.assertEqual(complete("hks w", "_tlc_hks"), ["w1", "w2"])
-        self.assertEqual(complete("ta ", "_tlc_tmux_sessions"), ["dev", "ops"])
-        self.assertEqual(complete("za ", "_tlc_zellij_sessions"), ["zdev"])
+        self.assertEqual(complete("tmux-pentest My", "_tlc_launch_tmux", cwd=self.root), ["My Project"])
+        self.assertEqual(complete("tmux-pentest . --", "_tlc_launch_tmux"), ["--new", "--label", "--detach"])
+        self.assertEqual(complete("herdr-pentest --", "_tlc_launch_herdr"),
+                         ["--new", "--label", "--run-commands"])
+        self.assertEqual(complete("herdr-pentest --new ", "_tlc_launch_herdr"), [])
+        self.assertEqual(complete("herdr-close w", "_tlc_herdr_workspaces"), ["w1", "w2"])
+        self.assertEqual(complete("tmux-attach ", "_tlc_tmux_sessions"), ["dev", "ops"])
+        self.assertEqual(complete("zellij-attach ", "_tlc_zellij_sessions"), ["zdev"])
 
 
 if __name__ == "__main__":

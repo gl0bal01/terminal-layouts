@@ -70,12 +70,12 @@ echo 'eval "$(command tl init zsh)"' >> ~/.zshrc     # shortcuts + tab completio
 - `~/.config/tmuxp/<workflow>.yaml`
 - `~/.config/zellij/layouts/<workflow>.kdl`
 
-Then launch any workspace with a shortcut (or the installed layouts directly):
+Then open any workspace — `<backend>-<workflow>`, Tab completes, `layouts` lists everything:
 
 ```bash
-tdk                                  # tmux:   docker workspace   (= tl launch tmux docker)
-zpt-new acme                         # Zellij: ~/ops/pentest/acme, session pt-acme
-hag                                  # Herdr:  ai-agents here, named ai-<this directory>
+tmux-docker                          # tmux:   docker workspace   (= tl launch tmux docker)
+zellij-pentest --new acme            # Zellij: ~/ops/pentest/acme, session pt-acme
+herdr-ai-agents                      # Herdr:  ai-agents here, named ai-<this directory>
 tmuxp load -y docker                 # plain tmuxp / zellij --layout pentest still work
 ```
 
@@ -134,10 +134,10 @@ echo 'eval "$(command tl init zsh)"' >> ~/.zshrc                                
 ```bash
 herdr                 # start Herdr (or work from a pane inside it)
 cd ~/projects/my-app
-hag                   # ai-agents workbench here, workspace named "ai-my-app"
-hpt-new acme          # pentest in ~/ops/pentest/acme, workspace "pt-acme"
-hma .                 # malware-analysis in the current directory
-hls                   # list workspaces      hks <id>  close one      hh   all helpers
+herdr-ai-agents                # ai-agents workbench here, workspace named "ai-my-app"
+herdr-pentest --new acme       # pentest in ~/ops/pentest/acme, workspace "pt-acme"
+herdr-malware-analysis .       # malware-analysis in the current directory
+herdr-ls                       # list workspaces   ·  herdr-close <id>   ·  layouts  (everything)
 ```
 
 Same commands without shortcuts: `tl launch herdr <workflow> [DIR|.] [--new NAME] [--label TEXT]`,
@@ -234,7 +234,7 @@ dropped as noise.)
 
 ---
 
-## Shell shortcuts (recommended)
+## Shell commands (recommended)
 
 One line in `~/.zshrc` (or `~/.bashrc` with `bash`) — no clone needed, any position in the file:
 
@@ -243,29 +243,30 @@ eval "$(command tl init zsh)"                        # every backend
 eval "$(command tl init zsh --backends tmux,herdr)"  # only the ones you use
 ```
 
-Every workflow's `shortcut:` becomes the same commands on every backend (`t` = tmux, `z` = Zellij,
-`h` = Herdr), generated from the manifest — add `shortcut:` to a new workflow and it gets them everywhere:
+Nothing to memorise: every command is **`<backend>-<workflow>`**, generated from the manifest for
+every workflow (a new workflow gets its commands automatically). Type `tmux-`, `zellij-` or `herdr-`
+and press Tab; run **`layouts`** for the full list with directories and descriptions.
 
-| workflow (shortcut) | tmux | Zellij | Herdr |
-|---|---|---|---|
-| ai-agents (`ag`) | `tag` | `zag` | `hag` |
-| claude-projects (`ai`) | `tai` | `zai` (`zp`) | `hai` |
-| project (`project`) | `tproject` | `zproject` (`zo`) | `hproject` |
-| docker · pentest · malware-analysis · osint · ctf | `tdk` `tpt` `tma` `tos` `tctf` | `zdk` `zpt` `zma` `zos` `zctf` | `hdk` `hpt` `hma` `hos` `hctf` |
-
-| every shortcut also takes | |
-|---|---|
-| `tpt .` / `tpt ~/dir` | run in that directory instead of the manifest one, named `<prefix><dir>` (`pt-dir`) |
-| `tpt-new acme` | create `<workflow dir>/acme`, named `<prefix>acme` (`pt-acme`) |
-| `--label NAME` | session / workspace name · tmux: `-d` (detached) · Herdr: `--run-commands` |
+```bash
+tmux-pentest                    # pentest in ~/ops/pentest        (= tl launch tmux pentest)
+tmux-pentest .                  # ... in the current directory, session pt-<dir>
+tmux-pentest --new acme         # ... in ~/ops/pentest/acme (created), session pt-acme
+zellij-malware-analysis ~/case  # any directory
+herdr-ai-agents                 # agent workbench here, workspace ai-<dir>
+tmux-docker -d --label web      # tmux: -d = detached · Herdr: --run-commands
+```
 
 | sessions | tmux | Zellij | Herdr |
 |---|---|---|---|
-| list · attach · kill | `tls` · `ta` · `tks` `tka` | `zls` · `za` · `zks` `zka` `zds` `zda` | `hls` · `hks <id>` |
-| help (lists everything above) | `th` | `zh` | `hh` |
+| list | `tmux-ls` | `zellij-ls` | `herdr-ls` |
+| attach | `tmux-attach <s>` | `zellij-attach <s>` | — |
+| kill / close | `tmux-kill <s>` · `tmux-kill-all` | `zellij-kill <s>` · `zellij-kill-all` · `zellij-delete[-all]` | `herdr-close <id>` |
+| the multiplexer itself | `t` | `z` | `h` |
 
-- **Tab completion** (zsh and bash) for `tl` and every shortcut: workflow names, options, directories,
+- **Tab completion** (zsh and bash) for `tl` and every command: workflow names, options, directories,
   live tmux/Zellij sessions and Herdr workspace ids.
+- Names come from `<prefix><directory>` (`pt-acme`, `ai-my-app`): prefixes are unique per workflow,
+  so two workflows opened from one directory never share a session.
 - `command tl` keeps working when a plugin aliases `tl` (oh-my-zsh's tmux plugin does).
 - **Your names win:** a name that already exists in your shell (zoxide's `z`, an oh-my-zsh alias, a
   command) is kept and listed once at startup. `tl init zsh --force` replaces them;
@@ -274,12 +275,21 @@ Every workflow's `shortcut:` becomes the same commands on every backend (`t` = t
 - Startup cost: about 0.1 s for `tl init`. To skip it, cache the output:
   `tl init zsh > ~/.cache/tl-init.zsh` and `source` that file (regenerate after upgrading `tl`).
 
-**Coming from the old `source shell/*-layouts.zsh` lines?** They still work (they now call `tl init`),
-but one `eval` line is faster. Changes: `tai-new`/`zp-new` now follow the rule above
-(claude-projects); use `tproject-new` / `zproject-new` for a new project. `project` runs in the
-current directory (`tproject`, `zproject`, `hproject`). Herdr's `hk` is `hks`. `TL_ALWAYS_REGEN`
-and the `TMUX_LAYOUTS_*` variables are gone: layouts are always fresh, and paths come from
-`defaults.yaml` / `TL_MANIFEST_DIR`.
+**Coming from the old short aliases?** They are replaced by readable names; `source shell/*-layouts.zsh`
+lines still work (they now call `tl init`), but one `eval` line is faster.
+
+| old | new |
+|---|---|
+| `tpt`, `zpt` … (`tai`, `tdk`, `tma`, `tos`, `tctf`, `zp`) | `tmux-pentest`, `zellij-pentest` … (`*-claude-projects`, `*-docker`, `*-malware-analysis`, `*-osint`, `*-ctf`) |
+| `tproject`, `zo <dir>` | `tmux-project`, `zellij-project <dir>` (project runs in the current directory) |
+| `tpt-new acme` | `tmux-pentest --new acme` |
+| `tpt .` | `tmux-pentest .` |
+| `tls` `ta` `tks` `tka` | `tmux-ls` `tmux-attach` `tmux-kill` `tmux-kill-all` |
+| `zls` `za` `zks` `zka` `zds` `zda` | `zellij-ls` `zellij-attach` `zellij-kill` `zellij-kill-all` `zellij-delete` `zellij-delete-all` |
+| `th` `zh` (`thelp` `zhelp`) | `layouts` |
+
+`TL_ALWAYS_REGEN` and the `TMUX_LAYOUTS_*` variables are gone: layouts are always fresh, and paths
+come from `defaults.yaml` / `TL_MANIFEST_DIR`.
 
 ---
 
@@ -293,15 +303,14 @@ make install    # regenerate and write both outputs
 ```
 
 Override the manifest tree without rebuilding via `TL_MANIFEST_DIR=/path/to/manifest`.
-Directory roots (`~/ops/pentest`, …) live in `defaults.yaml` (`paths:`); a workflow's `shortcut:` names
-its shell shortcuts (`shortcut: pt` → `tpt`, `zpt`, `hpt`, `*-new`).
+Directory roots (`~/ops/pentest`, …) live in `defaults.yaml` (`paths:`); a workflow's `prefix:` names
+the sessions opened from a directory (`prefix: pt-` → `pt-acme`) and must be unique (`tl validate`).
 
 ### Manifest format
 
 ```yaml
 id: project
 name: Projet
-shortcut: project             # tl init: tproject / zproject / hproject (+ -new)
 cwd: $PWD                     # or $paths.<root> from defaults.yaml
 tabs:
   - id: work

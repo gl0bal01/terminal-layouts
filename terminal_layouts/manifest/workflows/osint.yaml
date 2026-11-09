@@ -6,7 +6,6 @@ id: osint
 name: OSINT
 description: OSINT investigation workflow layout
 prefix: "os-"
-shortcut: os
 cwd: $paths.osint
 
 tabs:

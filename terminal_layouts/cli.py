@@ -7,7 +7,7 @@ Subcommands:
     tl gen herdr <workflow>     emit the inert Herdr JSON plan to stdout
     tl launch herdr|tmux|zellij <workflow> [DIR]
                                 open the workflow (Herdr workspace, tmux/Zellij session)
-    tl init zsh|bash            print shell shortcuts + tab completion (eval it in your rc)
+    tl init zsh|bash            print shell commands (tmux-pentest, ...) + tab completion
     tl list                     list available workflows
     tl validate                 validate all manifests against the schema
     tl install                  write all layouts into the tmuxp/zellij config dirs
@@ -199,7 +199,7 @@ def build_parser() -> argparse.ArgumentParser:
                         help="tmux only: create the session without attaching")
     launch.set_defaults(func=_cmd_launch)
 
-    init = sub.add_parser("init", help="print shell shortcuts + tab completion",
+    init = sub.add_parser("init", help="print shell commands (tmux-pentest, ...) + tab completion",
                           description='Add  eval "$(command tl init zsh)"  (or bash) to your shell rc.')
     init.add_argument("shell", choices=["zsh", "bash"])
     init.add_argument("--backends", metavar="LIST",

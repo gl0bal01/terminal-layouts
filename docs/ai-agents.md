@@ -15,10 +15,10 @@ Then, with Herdr running (`herdr`, or `herdr server` headless):
 
 ~~~sh
 cd ~/projects/my-app
-hag                              # = tl launch herdr ai-agents           (here, workspace "ai-my-app")
-hpt-new acme                     # = tl launch herdr pentest --new acme  (~/ops/pentest/acme, "pt-acme")
-hma .                            # = tl launch herdr malware-analysis .
-hls                              # list workspaces;  hks <id> closes one;  hh shows every shortcut
+herdr-ai-agents                  # = tl launch herdr ai-agents           (here, workspace "ai-my-app")
+herdr-pentest --new acme         # = tl launch herdr pentest --new acme  (~/ops/pentest/acme, "pt-acme")
+herdr-malware-analysis .         # = tl launch herdr malware-analysis .
+herdr-ls                         # list workspaces;  herdr-close <id> closes one;  layouts lists everything
 tl gen herdr ai-agents           # inspect the plan only; touches nothing
 ~~~
 
@@ -31,7 +31,7 @@ tl gen herdr ai-agents           # inspect the plan only; touches nothing
 | `--label TEXT` | Workspace name shown in Herdr. |
 | `--run-commands` | Also run the manifest pane commands (see below). |
 
-The same `tl launch` options work for `tmux` and `zellij` (plus `-d` for a detached tmux session). Tab completion (zsh and bash) covers `tl`, every shortcut, and `hks <TAB>` (live workspace ids with their labels); in zsh it registers as soon as `compinit` has run, whatever the order in `~/.zshrc`. See the README's *Shell shortcuts* section for the full table.
+The same `tl launch` options work for `tmux` and `zellij` (plus `-d` for a detached tmux session). Tab completion (zsh and bash) covers `tl`, every `<backend>-<workflow>` command, and `herdr-close <TAB>` (live workspace ids with their labels); in zsh it registers as soon as `compinit` has run, whatever the order in `~/.zshrc`. See the README's *Shell commands* section for the full list.
 
 Run inside a Herdr pane, `tl launch` targets that session; otherwise it targets the default session (or `HERDR_SOCKET_PATH`).
 
@@ -79,4 +79,4 @@ make e2e         # e2e-herdr + real tmux and Zellij (e2e-mux)
 make ci          # every CI job locally on HEAD; `make hooks` runs it on each pushed commit
 ~~~
 
-`make e2e-herdr` downloads the pinned Herdr release (sha256-checked, linux-x86_64), or uses `HERDR_BIN=/path/to/herdr` (also forwarded by `make ci`). It starts a throwaway server with its own HOME, XDG config/state/cache/data/runtime directories and socket, so a Herdr session you are working in is never touched. For every workflow it checks against the live server: tab labels and order, active tab, pane names, split directions and ratios, on-screen sibling order, focused pane, pane directories and that no command runs without `--run-commands`. It also checks `--run-commands`, the shell helpers under bash and zsh (`hag`, `hpt-new`, `hls`, `hks`), rollback after a mid-launch failure, the stopped-server error and the missing-directory warning. CI runs the same target on every push and pull request.
+`make e2e-herdr` downloads the pinned Herdr release (sha256-checked, linux-x86_64), or uses `HERDR_BIN=/path/to/herdr` (also forwarded by `make ci`). It starts a throwaway server with its own HOME, XDG config/state/cache/data/runtime directories and socket, so a Herdr session you are working in is never touched. For every workflow it checks against the live server: tab labels and order, active tab, pane names, split directions and ratios, on-screen sibling order, focused pane, pane directories and that no command runs without `--run-commands`. It also checks `--run-commands`, the shell commands under bash and zsh (`herdr-ai-agents`, `herdr-pentest --new`, `herdr-ls`, `herdr-close`), rollback after a mid-launch failure, the stopped-server error and the missing-directory warning. CI runs the same target on every push and pull request.

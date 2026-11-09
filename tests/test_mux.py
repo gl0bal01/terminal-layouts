@@ -159,44 +159,35 @@ class CliLaunchMux(unittest.TestCase):
 
 
 class ShellInitRender(unittest.TestCase):
-    def test_every_shortcut_for_every_backend(self):
+    def test_every_workflow_for_every_backend(self):
         script = shell_init.render("zsh")
         for wf_id in common.list_workflows():
-            sc = common.load_workflow(wf_id)["shortcut"]
-            for p in "tzh":
-                with self.subTest(name=p + sc):
-                    self.assertIn(f"function {p}{sc} {{", script)
-                    self.assertIn(f"function {p}{sc}-new {{", script)
+            for backend in ("tmux", "zellij", "herdr"):
+                with self.subTest(name=f"{backend}-{wf_id}"):
+                    self.assertIn(f"function {backend}-{wf_id} {{", script)
+        self.assertIn("function layouts {", script)
 
     def test_backend_subset_and_force(self):
         script = shell_init.render("bash", ["herdr"], force=True)
-        self.assertIn("function hpt {", script)
-        self.assertNotIn("function tpt {", script)
+        self.assertIn("function herdr-pentest {", script)
+        self.assertNotIn("function tmux-pentest {", script)
         self.assertIn('_TL_FORCE="1"', script)
 
-    def test_reserved_shortcuts_and_bad_shell_are_rejected(self):
-        real = common.load_workflow
-
-        def with_reserved(wf_id):
-            wf = real(wf_id)
-            return dict(wf, shortcut="ls") if wf_id == "pentest" else wf
-
-        with patch.object(common, "load_workflow", with_reserved):
-            with self.assertRaisesRegex(ValueError, "reserved"):
-                shell_init.render("zsh")
+    def test_bad_shell_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "unsupported shell"):
             shell_init.render("fish")
 
-    def test_unsafe_or_conflicting_shortcuts_are_clean_errors(self):
-        real = common.load_workflow
-        for bad in ("Pt", "p t", "a;rm", "p", "o"):  # p/o: Zellij keeps zp/zo
-            with self.subTest(shortcut=bad):
-                with patch.object(common, "load_workflow",
-                                  lambda w, bad=bad: dict(real(w), shortcut=bad) if w == "pentest" else real(w)):
+    def test_unsafe_or_clashing_workflow_ids_are_clean_errors(self):
+        # Ids become function names; "ls"/"close"/... would shadow tmux-ls, herdr-close...
+        for bad in ("Pentest", "pen test", "a;rm", "ls", "kill-all", "close"):
+            with self.subTest(workflow=bad):
+                fake = {"name": "x", "tabs": [], "prefix": ""}
+                with patch.object(common, "list_workflows", lambda bad=bad: ["pentest", bad]), \
+                        patch.object(common, "load_workflow", lambda w: dict(fake, id=w)):
                     err = io.StringIO()
                     with redirect_stderr(err), redirect_stdout(io.StringIO()):
                         self.assertEqual(cli.main(["init", "zsh"]), 1)
-                    self.assertIn("error: pentest:", err.getvalue())
+                    self.assertIn(f"error: {bad}:", err.getvalue())
                     self.assertNotIn("Traceback", err.getvalue())
 
     def test_registry_is_per_backend_so_re_eval_does_not_grow(self):
@@ -207,7 +198,7 @@ class ShellInitRender(unittest.TestCase):
 
     def test_generated_bodies_bypass_aliases(self):
         script = shell_init.render("zsh")
-        self.assertIn("command tl launch tmux pentest", script)
+        self.assertIn('command tl launch tmux pentest "$@"', script)
         self.assertIn("command cat <<'__TL_HELP__'", script)
         self.assertNotIn("\n  tl launch", script)
 

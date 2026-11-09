@@ -135,10 +135,11 @@ class LiveMux(unittest.TestCase):
             self.assertEqual(out.returncode, 0, out.stderr)
             self.assert_tmux_session("ma-demo", "malware-analysis", self.project)
 
-    def test_tmux_shortcuts_in_bash_and_zsh(self):
+    def test_tmux_commands_in_bash_and_zsh(self):
         for shell in ("bash", "zsh"):
             with self.subTest(shell=shell):
-                script = f'eval "$(tl init {shell})"\ntpt-new eng-{shell} -d && tdk . -d --label dk-{shell} && tls'
+                script = (f'eval "$(command tl init {shell})"\n'
+                          f"tmux-pentest --new eng-{shell} -d && tmux-docker . -d --label dk-{shell} && tmux-ls")
                 argv = (["zsh", "-f", "-c", "autoload -Uz compinit; compinit -u -D\n" + script]
                         if shell == "zsh" else ["bash", "--norc", "--noprofile", "-c", script])
                 out = subprocess.run(argv, cwd=self.project, capture_output=True, text=True)
@@ -146,9 +147,10 @@ class LiveMux(unittest.TestCase):
                 self.assert_tmux_session(f"pt-eng-{shell}", "pentest",
                                          Path(os.environ["HOME"], f"ops/pentest/eng-{shell}"))
                 self.assert_tmux_session(f"dk-{shell}", "docker", self.project)
-                self.assertIn(f"pt-eng-{shell}:", out.stdout)  # tls listed it
+                self.assertIn(f"pt-eng-{shell}:", out.stdout)  # tmux-ls listed it
                 killed = subprocess.run(argv[:-1] + [argv[-1].replace(
-                    script, f'eval "$(tl init {shell})"\ntks pt-eng-{shell}')], capture_output=True, text=True)
+                    script, f'eval "$(command tl init {shell})"\ntmux-kill pt-eng-{shell}')],
+                    capture_output=True, text=True)
                 self.assertEqual(killed.returncode, 0, killed.stderr)
                 self.assertNotIn(f"pt-eng-{shell}", "\n".join(self.tmux("list-sessions", "-F", "#S")))
 
@@ -181,7 +183,7 @@ class LiveMux(unittest.TestCase):
         self.zellij_in_pty("tl launch zellij pentest --new acme")
         self.assert_zellij_session("pt-acme", "pentest", Path(os.environ["HOME"], "ops/pentest/acme"))
         self.zellij_in_pty("zsh -f -c 'autoload -Uz compinit; compinit -u -D; "
-                           "eval \"$(tl init zsh)\"; zma . --label ma-here'")
+                           "eval \"$(command tl init zsh)\"; zellij-malware-analysis . --label ma-here'")
         self.assert_zellij_session("ma-here", "malware-analysis", self.project)
 
 

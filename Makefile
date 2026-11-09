@@ -140,4 +140,4 @@ setup: install ## Install layouts + print shell setup hint
 	@echo ""
 	@echo "Add to your ~/.zshrc (or ~/.bashrc with bash):"
 	@echo '  eval "$$(command tl init zsh)"'
-	@echo "Shortcuts for tmux (t*), Zellij (z*) and Herdr (h*) + tab completion; th / zh / hh for help."
+	@echo "Defines tmux-<workflow>, zellij-<workflow>, herdr-<workflow> + tab completion; run layouts for the list."
