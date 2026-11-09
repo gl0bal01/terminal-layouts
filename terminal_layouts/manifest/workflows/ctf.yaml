@@ -6,6 +6,7 @@ id: ctf
 name: CTF
 description: CTF competition workflow layout
 prefix: "ctf-"
+shortcut: ctf
 cwd: $paths.ctf
 
 tabs:

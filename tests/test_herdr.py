@@ -265,8 +265,11 @@ class CliLaunchOptions(unittest.TestCase):
         return rc, seen.get("plan"), err.getvalue()
 
     def test_defaults_keep_manifest_label(self):
+        rc, plan, _ = self.launch("pentest")
+        self.assertEqual((rc, plan["label"]), (0, "Pentest"))
+        # Workflows that run in the current directory are named after it.
         rc, plan, _ = self.launch("ai-agents")
-        self.assertEqual((rc, plan["label"], plan["cwd"]), (0, "AI Agent Workbench", "$PWD"))
+        self.assertEqual((rc, plan["label"], plan["cwd"]), (0, os.path.basename(os.getcwd()), os.getcwd()))
 
     def test_cwd_overrides_directory_and_names_the_workspace(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -316,8 +319,9 @@ class CliLaunchOptions(unittest.TestCase):
             self.assertNotIn("Traceback", err)
 
     def test_cwd_and_new_are_exclusive(self):
-        with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):
-            cli.main(["launch", "herdr", "pentest", "--cwd", "/tmp", "--new", "x"])
+        rc, plan, err = self.launch("pentest", "--cwd", "/tmp", "--new", "x")
+        self.assertEqual((rc, plan), (2, None))
+        self.assertIn("only one of", err)
 
 
 if __name__ == "__main__":

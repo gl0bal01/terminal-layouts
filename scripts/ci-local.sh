@@ -5,8 +5,8 @@
 # Like actions/checkout, each job runs on a clean export of a commit (REV,
 # default HEAD; the pre-push hook passes each pushed commit), so uncommitted
 # changes are not tested. Fresh venv per Python version. All jobs run; a
-# summary lists failures and log paths. HERDR_BIN=/path/to/herdr is forwarded
-# to e2e-herdr (needed off linux-x86_64, where no pinned download exists).
+# summary lists failures and log paths. HERDR_BIN / ZELLIJ_BIN are forwarded
+# to the e2e job (needed off linux-x86_64, where no pinned download exists).
 set -uo pipefail
 REV="${1:-HEAD}"
 
@@ -32,10 +32,12 @@ job_test() {  # test.yml: test (matrix python-version)
     checkout "$dir" && venv "$1" "$dir" && make -C "$dir" test PYTHON="$dir/.venv/bin/python"
 }
 
-job_e2e_herdr() {  # test.yml: e2e-herdr
-    local dir="$WORK/e2e-herdr"
-    checkout "$dir" && venv 3.12 "$dir" &&
-        make -C "$dir" e2e-herdr PYTHON="$dir/.venv/bin/python" ${HERDR_BIN:+HERDR_BIN="$HERDR_BIN"}
+job_e2e() {  # test.yml: e2e (apt zsh tmux; pip tmuxp)
+    local dir="$WORK/e2e"
+    command -v tmux >/dev/null || { echo "ci-local: tmux is required (CI installs it with apt)"; return 1; }
+    checkout "$dir" && venv 3.12 "$dir" && uv pip install -q --python "$dir/.venv/bin/python" tmuxp &&
+        PATH="$dir/.venv/bin:$PATH" make -C "$dir" e2e PYTHON="$dir/.venv/bin/python" \
+            ${HERDR_BIN:+HERDR_BIN="$HERDR_BIN"} ${ZELLIJ_BIN:+ZELLIJ_BIN="$ZELLIJ_BIN"}
 }
 
 job_publish_build() {  # publish.yml: uv build (the PyPI upload itself cannot run locally)
@@ -45,7 +47,7 @@ job_publish_build() {  # publish.yml: uv build (the PyPI upload itself cannot ru
 
 git -C "$REPO" rev-parse --verify -q "$REV^{commit}" >/dev/null || { echo "ci-local: unknown revision $REV" >&2; exit 1; }
 echo "ci-local: $(git -C "$REPO" log -1 --format='%h %s' "$REV")"
-JOBS=("test 3.10" "test 3.12" "e2e_herdr" "publish_build")
+JOBS=("test 3.10" "test 3.12" "e2e" "publish_build")
 failed=()
 for job in "${JOBS[@]}"; do
     read -r fn arg <<<"$job"

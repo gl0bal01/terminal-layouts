@@ -6,6 +6,7 @@ id: docker
 name: Docker
 description: Docker workflow layout — compose, logs, and debug tabs
 prefix: "dk-"
+shortcut: dk
 cwd: $paths.docker
 
 tabs:

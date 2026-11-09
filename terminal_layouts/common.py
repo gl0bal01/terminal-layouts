@@ -18,9 +18,12 @@ WORKFLOWS_DIR = MANIFEST_DIR / "workflows"
 SCHEMA_FILE = MANIFEST_DIR / "schema.json"
 
 
+_Loader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)  # C loader when libyaml is present
+
+
 def load_yaml(path: Path) -> Any:
     with path.open() as f:
-        return yaml.safe_load(f)
+        return yaml.load(f, Loader=_Loader)  # noqa: S506 — safe loader
 
 
 def load_defaults() -> dict[str, Any]:

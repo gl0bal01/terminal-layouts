@@ -1,0 +1,105 @@
+# bash tab completion for `tl` and the generated shortcuts. Inlined by `tl init bash`.
+# Works with bash 3.2+ (macOS): no mapfile; compopt is optional (bash 4+).
+# shellcheck disable=SC2207  # COMPREPLY=($(compgen ...)): words never contain spaces
+
+# Directory candidates, one per line, inserted quoted (names may have spaces).
+_tlc_dirs() {
+  local IFS=$'\n'
+  compopt -o filenames 2>/dev/null
+  COMPREPLY=($(compgen -d -- "$1"))
+}
+
+_tlc_opts() {
+  case "$1" in
+    herdr) echo "--label --run-commands" ;;
+    tmux) echo "--label --detach -d" ;;
+    *) echo "--label" ;;  # zellij, or target not typed yet
+  esac
+}
+
+_tl_complete() {
+  local cur="${COMP_WORDS[COMP_CWORD]}" prev="${COMP_WORDS[COMP_CWORD-1]}"
+  local cmd="${COMP_WORDS[1]:-}" words="" i n=0 target=""
+  COMPREPLY=()
+  case "$prev" in
+    --cwd|--tmuxp-dir|--zellij-dir) _tlc_dirs "$cur"; return ;;
+    --new|--label) return ;;
+    --backends) COMPREPLY=($(compgen -W "herdr tmux zellij herdr,tmux,zellij" -- "$cur")); return ;;
+  esac
+  if (( COMP_CWORD == 1 )); then
+    words="gen launch init list validate install --help --version"
+  else
+    # Count positional words after the subcommand, skipping options and their values.
+    for (( i = 2; i < COMP_CWORD; i++ )); do
+      case "${COMP_WORDS[i]}" in
+        --cwd|--new|--label|--tmuxp-dir|--zellij-dir|--backends) (( i++ )) ;;
+        -*) ;;
+        *) (( n++ )); (( n == 1 )) && target="${COMP_WORDS[i]}" ;;
+      esac
+    done
+    case "$cmd" in
+      gen)
+        case $n in 0) words="tmux zellij herdr" ;; 1) words="$(tl list 2>/dev/null)" ;; esac ;;
+      launch)
+        if [[ "$cur" == -* ]]; then
+          words="--cwd --new --help $(_tlc_opts "$target")"
+        else
+          case $n in
+            0) words="herdr tmux zellij" ;;
+            1) words="$(tl list 2>/dev/null)" ;;
+            2) _tlc_dirs "$cur"; return ;;
+          esac
+        fi ;;
+      init)
+        if [[ "$cur" == -* ]]; then words="--backends --force --help"
+        elif (( n == 0 )); then words="zsh bash"; fi ;;
+      install) words="--tmux-only --zellij-only --tmuxp-dir --zellij-dir --help" ;;
+    esac
+  fi
+  COMPREPLY=($(compgen -W "$words" -- "$cur"))
+}
+
+# Launchers: optional directory ("." = here) first, then options.
+_tlc_launch() {
+  local cur="${COMP_WORDS[COMP_CWORD]}"
+  if (( COMP_CWORD == 1 )) && [[ "$cur" != -* ]]; then _tlc_dirs "$cur"; return; fi
+  COMPREPLY=($(compgen -W "$(_tlc_opts "$1")" -- "$cur"))
+}
+# *-new: a free-form name first, then options.
+_tlc_new() {
+  COMPREPLY=()
+  (( COMP_CWORD == 1 )) && return
+  COMPREPLY=($(compgen -W "$(_tlc_opts "$1")" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+_tlc_launch_herdr()  { _tlc_launch herdr; }
+_tlc_launch_tmux()   { _tlc_launch tmux; }
+_tlc_launch_zellij() { _tlc_launch zellij; }
+_tlc_new_herdr()  { _tlc_new herdr; }
+_tlc_new_tmux()   { _tlc_new tmux; }
+_tlc_new_zellij() { _tlc_new zellij; }
+
+_tlc_hks() {
+  local ids
+  ids="$(herdr workspace list 2>/dev/null | python3 -c '
+import json, sys
+print(" ".join(w["workspace_id"] for w in json.load(sys.stdin)["result"]["workspaces"]))
+' 2>/dev/null)"
+  COMPREPLY=($(compgen -W "$ids" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+_tlc_tmux_sessions() {
+  COMPREPLY=($(compgen -W "$(tmux list-sessions -F '#S' 2>/dev/null)" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+_tlc_zellij_sessions() {
+  COMPREPLY=($(compgen -W "$(zellij list-sessions --short --no-formatting 2>/dev/null)" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+
+# _TLC_REGS holds "function:name" pairs from every `tl init` eval; only names
+# this integration owns (_TL_OWNED) get completion, never a command it skipped.
+_tlc_register_all() {
+  complete -F _tl_complete tl terminal-layouts
+  local entry
+  for entry in $_TLC_REGS; do
+    case " $_TL_OWNED " in *" ${entry#*:} "*) complete -F "${entry%%:*}" "${entry#*:}" ;; esac
+  done
+}
+_tlc_register_all

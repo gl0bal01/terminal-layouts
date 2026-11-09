@@ -8,8 +8,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from jsonschema import Draft7Validator
-
 from terminal_layouts import common
 
 FORMAT = "terminal-layouts.herdr.plan"
@@ -56,6 +54,8 @@ def _warnings_for(pane: dict[str, Any], path: str) -> list[str]:
 
 
 def compile_plan(workflow: dict[str, Any], defaults: dict[str, Any]) -> dict[str, Any]:
+    from jsonschema import Draft7Validator  # ~0.1 s import: only when a plan is compiled
+
     with common.SCHEMA_FILE.open(encoding="utf-8") as f:
         Draft7Validator(json.load(f)).validate(workflow)
     tabs: list[dict[str, Any]] = []

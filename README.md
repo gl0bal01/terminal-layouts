@@ -62,7 +62,7 @@ cd terminal-layouts
 
 make doctor     # check tmux / tmuxp / zellij / herdr are present
 make install    # write all 8 workflows to ~/.config (tmuxp + zellij)
-make setup      # install + print the lines to add to ~/.zshrc (aliases + tab completion)
+echo 'eval "$(tl init zsh)"' >> ~/.zshrc     # shortcuts + tab completion (bash: tl init bash)
 ```
 
 `make install` writes every workflow into your multiplexer config dirs:
@@ -70,11 +70,13 @@ make setup      # install + print the lines to add to ~/.zshrc (aliases + tab co
 - `~/.config/tmuxp/<workflow>.yaml`
 - `~/.config/zellij/layouts/<workflow>.kdl`
 
-Then launch any workspace:
+Then launch any workspace with a shortcut (or the installed layouts directly):
 
 ```bash
-tmuxp load -y docker                 # tmux
-zellij --layout pentest              # Zellij
+tdk                                  # tmux:   docker workspace   (= tl launch tmux docker)
+zpt-new acme                         # Zellij: ~/ops/pentest/acme, session pt-acme
+hag                                  # Herdr:  ai-agents here, named after this directory
+tmuxp load -y docker                 # plain tmuxp / zellij --layout pentest still work
 ```
 
 ### Make targets
@@ -83,10 +85,10 @@ zellij --layout pentest              # Zellij
 make all       # generate tmux + Zellij layouts and Herdr plans into ./dist (preview)
 make install   # write layouts to ~/.config (tmuxp + zellij)
 make doctor    # check required + recommended tools
-make setup     # install + print shell setup hint
-make test      # schema + parity + idempotence + Herdr unit tests
+make setup     # install + print the shell line to add
+make test      # schema + parity + idempotence + unit + shell (bash/zsh) tests
 make herdr     # generate Herdr JSON plans into ./dist/herdr
-make e2e-herdr # live test against a real, throwaway Herdr server
+make e2e       # live tests: real Herdr, tmux and Zellij (throwaway servers)
 make ci        # run every CI job locally (on HEAD)
 make hooks     # run `make ci` on each pushed commit (pre-push hook)
 make list      # list available workflows
@@ -124,7 +126,7 @@ layout file to install: `tl` creates the workspace directly in the running Herdr
 
 ```bash
 pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"   # Herdr support is newer than PyPI 0.1.0
-echo 'source ~/terminal-layouts/shell/herdr-layouts.zsh' >> ~/.zshrc     # helpers + tab completion
+echo 'eval "$(tl init zsh)"' >> ~/.zshrc                                  # shortcuts + tab completion
 ```
 
 **Every day**
@@ -138,12 +140,12 @@ hma .                 # malware-analysis in the current directory
 hls                   # list workspaces      hks <id>  close one      hh   all helpers
 ```
 
-Same commands without the helpers: `tl launch herdr <workflow> [--cwd DIR | --new NAME] [--label TEXT]`,
+Same commands without shortcuts: `tl launch herdr <workflow> [DIR|.] [--new NAME] [--label TEXT]`,
 and `tl gen herdr <workflow>` prints the plan without touching Herdr. Agents are never started for you:
 type `opencode`, `pi`, `claude` or `codex` in a pane. Manifest pane commands run only with `--run-commands`.
 
 Tabs, panes, sizes, focus and directories match the Zellij layout; a failed launch closes the workspace
-it created. Requires Herdr 0.8.2 or newer (tested on 0.8.2 and 0.9.5); `make e2e-herdr` checks every
+it created. Requires Herdr 0.8.2 or newer (tested on 0.8.2 and 0.9.5); `make e2e` checks every
 workflow against a real Herdr server, in CI too. See [AI-agent workspaces](docs/ai-agents.md) for
 details and limits.
 
@@ -232,33 +234,51 @@ dropped as noise.)
 
 ---
 
-## Shell aliases (optional, recommended)
+## Shell shortcuts (recommended)
 
-Source the alias files for fast launchers (`tdk`, `zpt`, `hpt`, `zo .`, `tdk-new <name>`, …):
+One line in `~/.zshrc` (or `~/.bashrc` with `bash`) — no clone needed, any position in the file:
 
 ```bash
-# in ~/.zshrc or ~/.bashrc (any order: zsh completion waits for compinit)
-source /path/to/terminal-layouts/shell/tmux-layouts.zsh
-source /path/to/terminal-layouts/shell/zellij-layouts.zsh
-source /path/to/terminal-layouts/shell/herdr-layouts.zsh
+eval "$(tl init zsh)"                        # every backend
+eval "$(tl init zsh --backends tmux,herdr)"  # only the ones you use
 ```
 
-| | tmux | Zellij | Herdr |
-|---|---|---|---|
-| claude-projects | `tai` | `zp` | `hai` |
-| project here | `tproject` | `zo <dir>` | `hproject` |
-| ai-agents here | — | — | `hag [dir]` |
-| docker · pentest · malware · osint · ctf | `tdk` `tpt` `tma` `tos` `tctf` | `zdk` `zpt` `zma` `zos` `zctf` | `hdk` `hpt` `hma` `hos` `hctf` |
-| …in the current directory | `tpt .` | — | `hpt .` |
-| new named workspace | `tpt-new <name>` | `zpt-new <name>` | `hpt-new <name>` |
-| list · attach/close | `tls` · `ta` `tks` | `zls` · `za` `zks` | `hls` · `hks <id>` |
-| help | `th` | `zh` | `hh` / `hhelp` |
+Every workflow's `shortcut:` becomes the same commands on every backend (`t` = tmux, `z` = Zellij,
+`h` = Herdr), generated from the manifest — add `shortcut:` to a new workflow and it gets them everywhere:
 
-- Each file also turns on **tab completion** for `tl` (subcommands, targets, workflow names, options);
-  the Herdr helpers complete too (`hks <TAB>` lists live Herdr workspaces). zsh and bash.
-- tmux/Zellij aliases load the installed layout by default; set `TL_ALWAYS_REGEN=1` to regenerate a
-  workflow from the manifest on every launch. Herdr helpers always build from the manifest.
-- `*-new <name>` variants spin up a fresh, named session in `<workflow dir>/<name>`.
+| workflow (shortcut) | tmux | Zellij | Herdr |
+|---|---|---|---|
+| ai-agents (`ag`) | `tag` | `zag` | `hag` |
+| claude-projects (`ai`) | `tai` | `zai` (`zp`) | `hai` |
+| project (`project`) | `tproject` | `zproject` (`zo`) | `hproject` |
+| docker · pentest · malware-analysis · osint · ctf | `tdk` `tpt` `tma` `tos` `tctf` | `zdk` `zpt` `zma` `zos` `zctf` | `hdk` `hpt` `hma` `hos` `hctf` |
+
+| every shortcut also takes | |
+|---|---|
+| `tpt .` / `tpt ~/dir` | run in that directory instead of the manifest one, named after it |
+| `tpt-new acme` | create `<workflow dir>/acme`, named `<prefix>acme` (`pt-acme`) |
+| `--label NAME` | session / workspace name · tmux: `-d` (detached) · Herdr: `--run-commands` |
+
+| sessions | tmux | Zellij | Herdr |
+|---|---|---|---|
+| list · attach · kill | `tls` · `ta` · `tks` `tka` | `zls` · `za` · `zks` `zka` `zds` `zda` | `hls` · `hks <id>` |
+| help (lists everything above) | `th` | `zh` | `hh` |
+
+- **Tab completion** (zsh and bash) for `tl` and every shortcut: workflow names, options, directories,
+  live tmux/Zellij sessions and Herdr workspace ids.
+- **Your names win:** a name that already exists in your shell (zoxide's `z`, an oh-my-zsh alias, a
+  command) is kept and listed once at startup. `tl init zsh --force` replaces them;
+  `TL_INIT_QUIET=1` hides the notice.
+- Layouts are generated fresh from the manifest on every launch, so they are never stale.
+- Startup cost: about 0.1 s for `tl init`. To skip it, cache the output:
+  `tl init zsh > ~/.cache/tl-init.zsh` and `source` that file (regenerate after upgrading `tl`).
+
+**Coming from the old `source shell/*-layouts.zsh` lines?** They still work (they now call `tl init`),
+but one `eval` line is faster. Changes: `tai-new`/`zp-new` now follow the rule above
+(claude-projects); use `tproject-new` / `zproject-new` for a new project. `project` runs in the
+current directory (`tproject`, `zproject`, `hproject`). Herdr's `hk` is `hks`. `TL_ALWAYS_REGEN`
+and the `TMUX_LAYOUTS_*` variables are gone: layouts are always fresh, and paths come from
+`defaults.yaml` / `TL_MANIFEST_DIR`.
 
 ---
 
@@ -272,13 +292,16 @@ make install    # regenerate and write both outputs
 ```
 
 Override the manifest tree without rebuilding via `TL_MANIFEST_DIR=/path/to/manifest`.
+Directory roots (`~/ops/pentest`, …) live in `defaults.yaml` (`paths:`); a workflow's `shortcut:` names
+its shell shortcuts (`shortcut: pt` → `tpt`, `zpt`, `hpt`, `*-new`).
 
 ### Manifest format
 
 ```yaml
 id: project
 name: Projet
-cwd: $paths.projects          # resolved from defaults.yaml
+shortcut: project             # tl init: tproject / zproject / hproject (+ -new)
+cwd: $PWD                     # or $paths.<root> from defaults.yaml
 tabs:
   - id: work
     name: work
@@ -326,12 +349,13 @@ manifest/workflows/*.yaml ──┬──► gen_tmux   ──► ~/.config/tmux
 terminal-layouts/
 ├── terminal_layouts/             # Python package (the `tl` CLI)
 │   ├── cli.py  common.py  gen_tmux.py  gen_zellij.py  validate.py
-│   ├── gen_herdr.py  launch_herdr.py
+│   ├── gen_herdr.py  launch_herdr.py  launch_mux.py  shell_init.py
+│   ├── shell/completion.{zsh,bash}   # inlined by `tl init`
 │   └── manifest/                 # source of truth (bundled in the wheel)
 │       ├── schema.json  defaults.yaml
 │       └── workflows/*.yaml      # the 8 workflows
-├── shell/                        # tmux + Zellij zsh aliases
-├── tests/                        # parity + idempotence + Herdr (unit + live)
+├── shell/                        # compatibility wrappers around `tl init`
+├── tests/                        # parity, idempotence, unit, bash/zsh, live Herdr/tmux/Zellij
 ├── docs/                         # ai-agents.md (Herdr backend)
 ├── scripts/ci-local.sh           # every CI job, locally (`make ci`)
 ├── .githooks/pre-push            # `make hooks`
@@ -343,7 +367,7 @@ terminal-layouts/
 - **Schema** — every manifest validated against `schema.json`.
 - **Parity** — tmux and Zellij outputs must be structurally equivalent (same tabs, same panes, same names).
 - **Idempotence** — regenerating produces byte-identical output (Herdr plans included).
-- **Herdr, live** — every workflow is launched on a real, throwaway Herdr server and the resulting tabs, panes, split ratios, focus and directories must match the manifest.
+- **Live** — every workflow is launched on real, throwaway Herdr, tmux and Zellij servers (also through the bash/zsh shortcuts) and the resulting tabs, panes, split ratios, focus and directories must match the manifest.
 
 All of them run in CI on every push and PR (Python 3.10 + 3.12, plus a live Herdr job on a pinned, sha256-checked release). `make ci` runs the same jobs locally; `make hooks` runs it before each push.
 

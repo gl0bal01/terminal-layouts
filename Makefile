@@ -15,7 +15,13 @@ HERDR_SHA256 := 14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d
 # Override with your own build: make e2e-herdr HERDR_BIN=/path/to/herdr
 HERDR_BIN ?= .cache/herdr/$(HERDR_VERSION)/herdr
 
-.PHONY: help all tmux zellij herdr schema parity test e2e-herdr ci hooks clean list install doctor setup
+# Zellij release used by the live tmux/Zellij test; sha256 of the extracted
+# binary as published in zellij-no-web-x86_64-unknown-linux-musl.sha256sum.
+ZELLIJ_VERSION := 0.45.1
+ZELLIJ_SHA256 := 0ec6ef07b63c6355c02ce18343d40ef5ef5af19e25313ea9009c8fceda29e94f
+ZELLIJ_BIN ?= .cache/zellij/$(ZELLIJ_VERSION)/zellij
+
+.PHONY: help all tmux zellij herdr schema parity test e2e e2e-herdr e2e-mux ci hooks clean list install doctor setup
 
 .DEFAULT_GOAL := help
 
@@ -30,7 +36,9 @@ help: ## Show this help
 	@echo "  schema     Validate manifests against schema.json"
 	@echo "  parity     Check tmux/zellij structural parity"
 	@echo "  test       schema + parity + idempotence + Herdr + shell helper tests"
+	@echo "  e2e        Live tests: e2e-herdr + e2e-mux"
 	@echo "  e2e-herdr  Live test against a real, throwaway Herdr server"
+	@echo "  e2e-mux    Live test against real, isolated tmux and Zellij"
 	@echo "  ci         Run every CI job locally (scripts/ci-local.sh)"
 	@echo "  hooks      Run 'make ci' before every git push"
 	@echo "  list       List available workflows"
@@ -76,8 +84,7 @@ parity: tmux zellij ## Check tmux/zellij structural parity
 
 test: schema parity herdr ## Run all tests
 	@bash tests/test-idempotence.sh
-	@$(PYTHON) -m unittest discover -s tests -p 'test_herdr.py'
-	@$(PYTHON) -m unittest discover -s tests -p 'test_shell.py'
+	@$(PYTHON) -m unittest discover -s tests -p 'test_*.py'
 	@echo "All tests passed."
 
 $(HERDR_BIN):
@@ -90,6 +97,19 @@ $(HERDR_BIN):
 
 e2e-herdr: $(HERDR_BIN) ## Live test against a real, throwaway Herdr server
 	HERDR_BIN=$(abspath $(HERDR_BIN)) $(PYTHON) -m unittest discover -s tests -p herdr_live.py -v
+
+$(ZELLIJ_BIN):
+	@if [ "$$(uname -sm)" != "Linux x86_64" ]; then \
+		echo "error: pinned Zellij download is linux-x86_64 only; run make e2e-mux ZELLIJ_BIN=/path/to/zellij" >&2; exit 1; fi
+	@mkdir -p $(@D)
+	curl -fsSL https://github.com/zellij-org/zellij/releases/download/v$(ZELLIJ_VERSION)/zellij-no-web-x86_64-unknown-linux-musl.tar.gz | tar -xzO zellij > $@.tmp
+	echo "$(ZELLIJ_SHA256)  $@.tmp" | sha256sum -c -
+	chmod +x $@.tmp && mv $@.tmp $@
+
+e2e-mux: $(ZELLIJ_BIN) ## Live test against real, isolated tmux and Zellij
+	ZELLIJ_BIN=$(abspath $(ZELLIJ_BIN)) $(PYTHON) -m unittest discover -s tests -p mux_live.py -v
+
+e2e: e2e-herdr e2e-mux ## All live tests
 
 ci: ## Run every CI job locally
 	@bash scripts/ci-local.sh
@@ -118,8 +138,6 @@ doctor: ## Check required + recommended tools are installed
 
 setup: install ## Install layouts + print shell setup hint
 	@echo ""
-	@echo "Add to your ~/.zshrc:"
-	@echo "  source $(CURDIR)/shell/tmux-layouts.zsh"
-	@echo "  source $(CURDIR)/shell/zellij-layouts.zsh"
-	@echo "  source $(CURDIR)/shell/herdr-layouts.zsh"
-	@echo "(each one also enables tab completion for tl; type th / zh / hh for help)"
+	@echo "Add to your ~/.zshrc (or ~/.bashrc with bash):"
+	@echo '  eval "$$(tl init zsh)"'
+	@echo "Shortcuts for tmux (t*), Zellij (z*) and Herdr (h*) + tab completion; th / zh / hh for help."

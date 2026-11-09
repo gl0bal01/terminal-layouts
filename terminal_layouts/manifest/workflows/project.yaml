@@ -6,7 +6,8 @@ id: project
 name: Projet
 description: Focused single-project session
 prefix: ""
-cwd: $paths.projects
+shortcut: project
+cwd: $PWD                 # project = the directory you launch from
 
 tabs:
   - id: work

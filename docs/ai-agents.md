@@ -8,17 +8,17 @@ Prerequisites: Python 3.10+ and Herdr 0.8.2 or newer (tested against 0.8.2 and 0
 
 ~~~sh
 pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"
-echo 'source ~/terminal-layouts/shell/herdr-layouts.zsh' >> ~/.zshrc   # helpers + tab completion (clone needed)
+echo 'eval "$(tl init zsh)"' >> ~/.zshrc   # shortcuts + tab completion (bash: tl init bash)
 ~~~
 
 Then, with Herdr running (`herdr`, or `herdr server` headless):
 
 ~~~sh
 cd ~/projects/my-app
-hag                              # = tl launch herdr ai-agents --cwd "$PWD"   (workspace "my-app")
-hpt-new acme                     # = tl launch herdr pentest --new acme       (~/ops/pentest/acme, "pt-acme")
-hma .                            # = tl launch herdr malware-analysis --cwd "$PWD"
-hls                              # list workspaces;  hks <id> closes one;  hh shows every helper
+hag                              # = tl launch herdr ai-agents           (here, workspace "my-app")
+hpt-new acme                     # = tl launch herdr pentest --new acme  (~/ops/pentest/acme, "pt-acme")
+hma .                            # = tl launch herdr malware-analysis .
+hls                              # list workspaces;  hks <id> closes one;  hh shows every shortcut
 tl gen herdr ai-agents           # inspect the plan only; touches nothing
 ~~~
 
@@ -26,12 +26,12 @@ tl gen herdr ai-agents           # inspect the plan only; touches nothing
 
 | Option | Effect |
 |---|---|
-| `--cwd DIR` | Run the workflow in `DIR` instead of its manifest directory (tabs with their own `cwd` keep it). The workspace is named after `DIR` unless `--label` is given. |
+| `DIR` / `.` (or `--cwd DIR`) | Run the workflow in `DIR` instead of its manifest directory (tabs with their own `cwd` keep it). The workspace is named after `DIR` unless `--label` is given; workflows whose manifest directory is `$PWD` (ai-agents, project) are named after the current directory. |
 | `--new NAME` | Create `<workflow dir>/NAME` and launch there, named `<prefix>NAME` (`pt-`, `ma-`, …, from the manifest). |
 | `--label TEXT` | Workspace name shown in Herdr. |
 | `--run-commands` | Also run the manifest pane commands (see below). |
 
-Tab completion (zsh and bash) covers `tl` subcommands, targets, workflow names and options, the Herdr helpers, and `hks <TAB>` (live workspace ids with their labels). It is enabled by sourcing any of `shell/{tmux,zellij,herdr}-layouts.zsh`; in zsh it registers as soon as `compinit` has run, whatever the order in `~/.zshrc`.
+The same `tl launch` options work for `tmux` and `zellij` (plus `-d` for a detached tmux session). Tab completion (zsh and bash) covers `tl`, every shortcut, and `hks <TAB>` (live workspace ids with their labels); in zsh it registers as soon as `compinit` has run, whatever the order in `~/.zshrc`. See the README's *Shell shortcuts* section for the full table.
 
 Run inside a Herdr pane, `tl launch` targets that session; otherwise it targets the default session (or `HERDR_SOCKET_PATH`).
 
@@ -73,8 +73,9 @@ For safe parallel development, use separate Git worktrees per writing agent and 
 ## Validation
 
 ~~~sh
-make test        # plan determinism, every manifest, mocked-CLI adapter tests, shell helpers + completion (bash and zsh)
+make test        # plan determinism, every manifest, mocked-CLI adapter tests, shortcuts + completion (bash and zsh)
 make e2e-herdr   # live: real Herdr server, every workflow (no mocks)
+make e2e         # e2e-herdr + real tmux and Zellij (e2e-mux)
 make ci          # every CI job locally on HEAD; `make hooks` runs it on each pushed commit
 ~~~
 

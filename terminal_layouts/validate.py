@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import json
 
-from jsonschema import Draft7Validator
-
 from terminal_layouts import common
 
 
 def main() -> int:
+    from jsonschema import Draft7Validator
+
     with common.SCHEMA_FILE.open() as f:
         schema = json.load(f)
     validator = Draft7Validator(schema)
@@ -34,6 +34,16 @@ def main() -> int:
                 print(f"  {path}: {e.message}")
         else:
             print(f"OK: {wf_id}")
+
+    # `tl init` turns each shortcut into t<sc>/z<sc>/h<sc>: they must be unique.
+    owners: dict[str, str] = {}
+    for wf_id in workflows:
+        shortcut = common.load_workflow(wf_id).get("shortcut")
+        if shortcut and shortcut in owners:
+            errors += 1
+            print(f"FAIL: {wf_id}: shortcut {shortcut!r} already used by {owners[shortcut]}")
+        elif shortcut:
+            owners[shortcut] = wf_id
 
     if errors:
         print(f"\n{errors} workflow(s) failed validation")
