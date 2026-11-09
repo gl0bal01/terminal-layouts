@@ -64,6 +64,10 @@ class LaunchMux(unittest.TestCase):
                 launch_mux.launch_zellij(self.wf, "/srv", "s", run=FakeRun())
 
 
+def tmux_name(name: str) -> str:
+    return name.replace(".", "_").replace(":", "_")
+
+
 class CliLaunchMux(unittest.TestCase):
     def launch(self, *argv, rc: int = 0):
         seen = {}
@@ -89,7 +93,7 @@ class CliLaunchMux(unittest.TestCase):
             self.assertEqual((seen["cwd"], seen["session"]), (home, "x"))
             code, seen, _ = self.launch("tmux", "pentest", ".", "-d")
             self.assertEqual((seen["cwd"], seen["session"], seen["detach"]),
-                             (os.getcwd(), "pt-" + os.path.basename(os.getcwd()), True))
+                             (os.getcwd(), tmux_name("pt-" + os.path.basename(os.getcwd())), True))
             code, seen, _ = self.launch("tmux", "pentest", "--new", "acme")
             self.assertEqual((seen["cwd"], seen["session"]), (str(base / "acme"), "pt-acme"))
             self.assertTrue((base / "acme").is_dir())
@@ -114,12 +118,12 @@ class CliLaunchMux(unittest.TestCase):
     def test_project_runs_in_the_current_directory(self):
         here = os.path.basename(os.getcwd())
         code, seen, _ = self.launch("tmux", "project")
-        self.assertEqual((code, seen["cwd"], seen["session"]), (0, os.getcwd(), here))
+        self.assertEqual((code, seen["cwd"], seen["session"]), (0, os.getcwd(), tmux_name(here)))
         # Prefixed, so two workflows launched from one directory never share a session.
         code, seen, _ = self.launch("zellij", "ai-agents")
         self.assertEqual((code, seen["session"]), (0, "ai-" + here))
         code, seen, _ = self.launch("tmux", "claude-projects", ".")
-        self.assertEqual(seen["session"], "cp-" + here)
+        self.assertEqual(seen["session"], tmux_name("cp-" + here))
         prefixes = [common.load_workflow(w)["prefix"] for w in common.list_workflows()]
         self.assertEqual(len(prefixes), len(set(prefixes)), "prefixes must be unique")
 
