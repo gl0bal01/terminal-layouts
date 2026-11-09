@@ -164,3 +164,11 @@ EOF
 }
 
 alias zhelp='zh'
+
+# tl + helper tab completion (zsh or bash).
+if [ -n "${ZSH_VERSION:-}" ]; then
+  eval '. "${${(%):-%x}:A:h}/tl-completion.zsh"'
+elif [ -n "${BASH_VERSION:-}" ]; then
+  # shellcheck source=tl-completion.bash
+  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tl-completion.bash"
+fi

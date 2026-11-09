@@ -4,16 +4,34 @@ The canonical YAML manifest can now produce **three** backends. Herdr is differe
 
 ## Quick start
 
-Prerequisites: Python 3.10+, project dependencies, and Herdr 0.8.2 or newer (tested against 0.8.2 and 0.9.5). Start Herdr normally or run its headless server in another terminal. The Herdr backend is not in the PyPI release yet (0.1.0): until the next release, run these from a clone and replace `tl` with `python3 -m terminal_layouts.cli`.
+Prerequisites: Python 3.10+ and Herdr 0.8.2 or newer (tested against 0.8.2 and 0.9.5). Herdr support is newer than the PyPI release (0.1.0), so install `tl` from the repository:
 
 ~~~sh
-tl validate
-tl gen tmux ai-agents
-tl gen zellij ai-agents
-tl gen herdr ai-agents > ai-agents.herdr.json
-herdr server                     # in another terminal, unless already running
-tl launch herdr ai-agents        # create only workspace/tabs/panes
+pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"
+echo 'source ~/terminal-layouts/shell/herdr-layouts.zsh' >> ~/.zshrc   # helpers + tab completion (clone needed)
 ~~~
+
+Then, with Herdr running (`herdr`, or `herdr server` headless):
+
+~~~sh
+cd ~/projects/my-app
+hag                              # = tl launch herdr ai-agents --cwd "$PWD"   (workspace "my-app")
+hpt-new acme                     # = tl launch herdr pentest --new acme       (~/ops/pentest/acme, "pt-acme")
+hma .                            # = tl launch herdr malware-analysis --cwd "$PWD"
+hls                              # list workspaces;  hk <id> closes one;  hh shows every helper
+tl gen herdr ai-agents           # inspect the plan only; touches nothing
+~~~
+
+`tl launch herdr <workflow>` options:
+
+| Option | Effect |
+|---|---|
+| `--cwd DIR` | Run the workflow in `DIR` instead of its manifest directory (tabs with their own `cwd` keep it). The workspace is named after `DIR` unless `--label` is given. |
+| `--new NAME` | Create `<workflow dir>/NAME` and launch there, named `<prefix>NAME` (`pt-`, `ma-`, …, from the manifest). |
+| `--label TEXT` | Workspace name shown in Herdr. |
+| `--run-commands` | Also run the manifest pane commands (see below). |
+
+Tab completion (zsh and bash) covers `tl` subcommands, targets, workflow names and options, the helpers, and `hk <TAB>` (live workspace ids with their labels). It is enabled by sourcing any of `shell/{tmux,zellij,herdr}-layouts.zsh`; in zsh, source them after `compinit` (oh-my-zsh does that for you).
 
 Run inside a Herdr pane, `tl launch` targets that session; otherwise it targets the default session (or `HERDR_SOCKET_PATH`).
 
@@ -55,9 +73,9 @@ For safe parallel development, use separate Git worktrees per writing agent and 
 ## Validation
 
 ~~~sh
-make test        # plan determinism, every manifest, mocked-CLI adapter tests
+make test        # plan determinism, every manifest, mocked-CLI adapter tests, shell helpers + completion (bash and zsh)
 make e2e-herdr   # live: real Herdr server, every workflow (no mocks)
 make ci          # every CI job locally on HEAD; `make hooks` runs it on each pushed commit
 ~~~
 
-`make e2e-herdr` downloads the pinned Herdr release (sha256-checked, linux-x86_64), or uses `HERDR_BIN=/path/to/herdr` (also forwarded by `make ci`). It starts a throwaway server with its own HOME, XDG config/state/cache/data/runtime directories and socket, so a Herdr session you are working in is never touched. For every workflow it checks against the live server: tab labels and order, active tab, pane names, split directions and ratios, on-screen sibling order, focused pane, pane directories and that no command runs without `--run-commands`. It also checks `--run-commands`, rollback after a mid-launch failure, the stopped-server error and the missing-directory warning. CI runs the same target on every push and pull request.
+`make e2e-herdr` downloads the pinned Herdr release (sha256-checked, linux-x86_64), or uses `HERDR_BIN=/path/to/herdr` (also forwarded by `make ci`). It starts a throwaway server with its own HOME, XDG config/state/cache/data/runtime directories and socket, so a Herdr session you are working in is never touched. For every workflow it checks against the live server: tab labels and order, active tab, pane names, split directions and ratios, on-screen sibling order, focused pane, pane directories and that no command runs without `--run-commands`. It also checks `--run-commands`, the shell helpers under bash and zsh (`hag`, `hpt-new`, `hls`, `hk`), rollback after a mid-launch failure, the stopped-server error and the missing-directory warning. CI runs the same target on every push and pull request.

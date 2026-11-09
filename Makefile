@@ -29,7 +29,7 @@ help: ## Show this help
 	@echo "  herdr      Generate inert Herdr JSON plans (dist/herdr/*.json)"
 	@echo "  schema     Validate manifests against schema.json"
 	@echo "  parity     Check tmux/zellij structural parity"
-	@echo "  test       schema + parity + idempotence + Herdr unit tests"
+	@echo "  test       schema + parity + idempotence + Herdr + shell helper tests"
 	@echo "  e2e-herdr  Live test against a real, throwaway Herdr server"
 	@echo "  ci         Run every CI job locally (scripts/ci-local.sh)"
 	@echo "  hooks      Run 'make ci' before every git push"
@@ -77,6 +77,7 @@ parity: tmux zellij ## Check tmux/zellij structural parity
 test: schema parity herdr ## Run all tests
 	@bash tests/test-idempotence.sh
 	@$(PYTHON) -m unittest discover -s tests -p 'test_herdr.py'
+	@$(PYTHON) -m unittest discover -s tests -p 'test_shell.py'
 	@echo "All tests passed."
 
 $(HERDR_BIN):
@@ -120,3 +121,5 @@ setup: install ## Install layouts + print shell setup hint
 	@echo "Add to your ~/.zshrc:"
 	@echo "  source $(CURDIR)/shell/tmux-layouts.zsh"
 	@echo "  source $(CURDIR)/shell/zellij-layouts.zsh"
+	@echo "  source $(CURDIR)/shell/herdr-layouts.zsh"
+	@echo "(each one also enables tab completion for tl; type th / zh / hh for help)"

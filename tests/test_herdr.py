@@ -1,13 +1,15 @@
 """Pure-plan and mocked-Herdr adapter tests (Herdr binary not required)."""
 from __future__ import annotations
 
+import io
 import json
 import os
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import patch
 
-from terminal_layouts import common, gen_herdr, launch_herdr
+from terminal_layouts import cli, common, gen_herdr, launch_herdr
 
 
 class FakeHerdr:
@@ -243,6 +245,57 @@ class HerdrTests(unittest.TestCase):
         del wf["tabs"]
         with self.assertRaises(Exception):
             gen_herdr.compile_plan(wf, common.load_defaults())
+
+
+class CliLaunchOptions(unittest.TestCase):
+    """`tl launch herdr` --cwd / --new / --label (Herdr itself is not called)."""
+
+    def launch(self, *argv):
+        seen = {}
+
+        def fake_launch(plan, run_commands=False):
+            seen["plan"] = plan
+            return "w9"
+
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(launch_herdr, "launch", fake_launch), \
+                redirect_stdout(out), redirect_stderr(err):
+            rc = cli.main(["launch", "herdr", *argv])
+        return rc, seen.get("plan"), err.getvalue()
+
+    def test_defaults_keep_manifest_label(self):
+        rc, plan, _ = self.launch("ai-agents")
+        self.assertEqual((rc, plan["label"], plan["cwd"]), (0, "AI Agent Workbench", "$PWD"))
+
+    def test_cwd_overrides_directory_and_names_the_workspace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rc, plan, _ = self.launch("pentest", "--cwd", tmp)
+            self.assertEqual((rc, plan["cwd"], plan["label"]), (0, tmp, os.path.basename(tmp)))
+            rc, plan, _ = self.launch("pentest", "--cwd", tmp, "--label", "acme")
+            self.assertEqual(plan["label"], "acme")
+            # Tabs keep their own directories; the rest inherit --cwd.
+            self.assertEqual(set(launch_herdr._pane_cwds(plan)), {tmp})
+
+    def test_new_creates_workflow_dir_and_prefixed_label(self):
+        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HOME": home}):
+            rc, plan, _ = self.launch("pentest", "--new", "acme")
+            target = os.path.join(home, "ops", "pentest", "acme")
+            self.assertEqual((rc, plan["cwd"], plan["label"]), (0, target, "pt-acme"))
+            self.assertTrue(os.path.isdir(target))
+            rc, plan, _ = self.launch("project", "--new", "site")
+            self.assertEqual(plan["label"], "site")
+
+    def test_bad_directories_are_rejected_before_launch(self):
+        for argv in (["--cwd", "/nonexistent/dir"], ["--new", "../escape"], ["--new", "a/b"],
+                     ["--new", ".."], ["--new", ""]):
+            with self.subTest(argv=argv):
+                rc, plan, err = self.launch("pentest", *argv)
+                self.assertEqual((rc, plan), (2, None))
+                self.assertIn("error:", err)
+
+    def test_cwd_and_new_are_exclusive(self):
+        with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):
+            cli.main(["launch", "herdr", "pentest", "--cwd", "/tmp", "--new", "x"])
 
 
 if __name__ == "__main__":

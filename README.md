@@ -62,7 +62,7 @@ cd terminal-layouts
 
 make doctor     # check tmux / tmuxp / zellij / herdr are present
 make install    # write all 8 workflows to ~/.config (tmuxp + zellij)
-make setup      # install + print the two lines to add to ~/.zshrc
+make setup      # install + print the lines to add to ~/.zshrc (aliases + tab completion)
 ```
 
 `make install` writes every workflow into your multiplexer config dirs:
@@ -117,20 +117,35 @@ tl gen zellij pentest                              # or emit one to stdout
 
 ## Herdr backend (experimental)
 
-The same manifest can also generate a deterministic JSON execution plan for [Herdr](https://herdr.dev/), a live terminal workspace manager:
+[Herdr](https://herdr.dev/) is a live terminal workspace manager for AI coding agents. There is no
+layout file to install: `tl` creates the workspace directly in the running Herdr.
 
-~~~bash
-tl gen herdr ai-agents              # inspect JSON; does not start anything
-herdr server                         # start separately if needed
-tl launch herdr ai-agents            # create layout only (no agent commands)
-# opt-in: tl launch herdr ai-agents --run-commands
-~~~
+**One-time setup**
 
-Requires Herdr 0.8.2 or newer (tested against 0.8.2 and 0.9.5). The Herdr backend is not in the PyPI release yet (0.1.0): until the next release, run it from a clone with `python3 -m terminal_layouts.cli gen|launch herdr <workflow>`.
+```bash
+pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"   # Herdr support is newer than PyPI 0.1.0
+echo 'source ~/terminal-layouts/shell/herdr-layouts.zsh' >> ~/.zshrc     # helpers + tab completion
+```
 
-The `ai-agents` workflow includes a coordinator, OpenCode, Pi, tests, research, and review panes. Agents are launched **manually**; API usage is never automatic. Pane topology, sizes, focus and directories are mapped, and a failed launch closes the workspace it created. `make e2e-herdr` checks every workflow against a real Herdr server, in CI too. `tl install` remains a tmuxp/Zellij installer.
+**Every day**
 
-See [AI-agent workspaces](docs/ai-agents.md) for safety limits, CLI requirements, and tests.
+```bash
+herdr                 # start Herdr (or work from a pane inside it)
+cd ~/projects/my-app
+hag                   # ai-agents workbench here, workspace named "my-app"
+hpt-new acme          # pentest in ~/ops/pentest/acme, workspace "pt-acme"
+hma .                 # malware-analysis in the current directory
+hls                   # list workspaces      hk <id>   close one      hh   all helpers
+```
+
+Same commands without the helpers: `tl launch herdr <workflow> [--cwd DIR | --new NAME] [--label TEXT]`,
+and `tl gen herdr <workflow>` prints the plan without touching Herdr. Agents are never started for you:
+type `opencode`, `pi`, `claude` or `codex` in a pane. Manifest pane commands run only with `--run-commands`.
+
+Tabs, panes, sizes, focus and directories match the Zellij layout; a failed launch closes the workspace
+it created. Requires Herdr 0.8.2 or newer (tested on 0.8.2 and 0.9.5); `make e2e-herdr` checks every
+workflow against a real Herdr server, in CI too. See [AI-agent workspaces](docs/ai-agents.md) for
+details and limits.
 
 ---
 
@@ -219,17 +234,31 @@ dropped as noise.)
 
 ## Shell aliases (optional, recommended)
 
-Source the alias files for fast launchers (`tdk`, `zpt`, `zo .`, `tdk-new <name>`, …):
+Source the alias files for fast launchers (`tdk`, `zpt`, `hpt`, `zo .`, `tdk-new <name>`, …):
 
 ```bash
-# in ~/.zshrc
+# in ~/.zshrc (after oh-my-zsh / compinit), or ~/.bashrc
 source /path/to/terminal-layouts/shell/tmux-layouts.zsh
 source /path/to/terminal-layouts/shell/zellij-layouts.zsh
+source /path/to/terminal-layouts/shell/herdr-layouts.zsh
 ```
 
-- Aliases load the installed layout by default. Run `thelp` / `zhelp` for the full list.
-- `*-new <name>` variants spin up a fresh, named session in a chosen directory.
-- Set `TL_ALWAYS_REGEN=1` to regenerate a workflow from the manifest on every launch (always fresh).
+| | tmux | Zellij | Herdr |
+|---|---|---|---|
+| claude-projects | `tai` | `zp` | `hai` |
+| project here | `tproject` | `zo <dir>` | `hproject` |
+| ai-agents here | — | — | `hag [dir]` |
+| docker · pentest · malware · osint · ctf | `tdk` `tpt` `tma` `tos` `tctf` | `zdk` `zpt` `zma` `zos` `zctf` | `hdk` `hpt` `hma` `hos` `hctf` |
+| …in the current directory | `tpt .` | — | `hpt .` |
+| new named workspace | `tpt-new <name>` | `zpt-new <name>` | `hpt-new <name>` |
+| list · attach/close | `tls` · `ta` `tks` | `zls` · `za` `zks` | `hls` · `hk <id>` |
+| help | `th` | `zh` | `hh` |
+
+- Each file also turns on **tab completion** for `tl` (subcommands, targets, workflow names, options) and
+  its helpers (`hk <TAB>` lists live Herdr workspaces). zsh and bash.
+- tmux/Zellij aliases load the installed layout by default; set `TL_ALWAYS_REGEN=1` to regenerate a
+  workflow from the manifest on every launch. Herdr helpers always build from the manifest.
+- `*-new <name>` variants spin up a fresh, named session in `<workflow dir>/<name>`.
 
 ---
 

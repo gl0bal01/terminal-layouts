@@ -16,6 +16,8 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$LOGS" "$REPO/.cache"
 command -v uv >/dev/null || { echo "ci-local: uv is required (https://docs.astral.sh/uv/)" >&2; exit 1; }
+# CI installs zsh with apt (shell helper tests run under bash AND zsh); locally it must exist.
+command -v zsh >/dev/null || { echo "ci-local: zsh is required (CI installs it with apt)" >&2; exit 1; }
 
 checkout() {  # $1 = dir: committed tree only, shared download cache
     mkdir -p "$1" && git -C "$REPO" archive "$REV" | tar -x -C "$1" && ln -s "$REPO/.cache" "$1/.cache"

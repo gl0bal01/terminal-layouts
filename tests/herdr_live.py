@@ -72,6 +72,10 @@ class LiveHerdr(unittest.TestCase):
         # Expose exactly the requested binary as `herdr`, whatever its file name.
         (cls.root / "bin").mkdir()
         (cls.root / "bin" / "herdr").symlink_to(Path(binary).resolve())
+        # The shell helpers call `tl`: point it at this checkout.
+        tl = cls.root / "bin" / "tl"
+        tl.write_text(f'#!/bin/sh\nPYTHONPATH="{REPO}" exec "{sys.executable}" -m terminal_layouts.cli "$@"\n')
+        tl.chmod(0o755)
         xdg = {name: cls.root / "xdg" / name for name in ("config", "state", "cache", "data", "run")}
         for path in xdg.values():
             path.mkdir(parents=True, mode=0o700)
@@ -200,6 +204,32 @@ class LiveHerdr(unittest.TestCase):
         pane_ids: dict = {}
         ws = launch_herdr.launch(plan, pane_ids=pane_ids)
         self.assert_workspace_matches(plan, ws, pane_ids)
+
+    def test_shell_helpers_against_real_server(self):
+        helpers = REPO / "shell" / "herdr-layouts.zsh"
+        project = Path(os.environ["HOME"]) / "projects" / "demo"
+        project.mkdir(parents=True, exist_ok=True)
+        for shell in ("bash", "zsh"):
+            with self.subTest(shell=shell):
+                script = f"source {helpers}\nhag && hpt-new acme-{shell} && hls"
+                argv = (["zsh", "-f", "-c", "autoload -Uz compinit; compinit -u -D\n" + script]
+                        if shell == "zsh" else ["bash", "--norc", "--noprofile", "-c", script])
+                out = subprocess.run(argv, cwd=project, capture_output=True, text=True)
+                self.assertEqual(out.returncode, 0, out.stderr)
+                live = {w["label"]: w["workspace_id"] for w in herdr("workspace", "list")["workspaces"]}
+                self.assertEqual(sorted(live), sorted(["demo", f"pt-acme-{shell}"]))
+                for label, ws in live.items():
+                    self.assertRegex(out.stdout, rf"{ws}\s+{label}\s+\(\d+ tabs, \d+ panes\)")
+                engagement = Path(os.environ["HOME"]) / "ops" / "pentest" / f"acme-{shell}"
+                cwds = {p["cwd"] for p in herdr("pane", "list", "--workspace", live[f"pt-acme-{shell}"])["panes"]}
+                self.assertEqual(cwds, {str(engagement)})
+                cwds = {p["cwd"] for p in herdr("pane", "list", "--workspace", live["demo"])["panes"]}
+                self.assertEqual(cwds, {str(project)})
+                closed = subprocess.run(
+                    argv[:-1] + [argv[-1].replace(script, f"source {helpers}\nhk {' '.join(live.values())}")],
+                    capture_output=True, text=True)
+                self.assertEqual(closed.returncode, 0, closed.stderr)
+                self.assertEqual(herdr("workspace", "list")["workspaces"], [])
 
     def test_cli_run_commands_starts_only_manifest_commands(self):
         out = subprocess.run([sys.executable, "-m", "terminal_layouts.cli", "launch", "herdr",

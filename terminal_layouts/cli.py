@@ -4,6 +4,8 @@
 Subcommands:
     tl gen tmux <workflow>      emit tmuxp YAML to stdout
     tl gen zellij <workflow>    emit Zellij KDL to stdout
+    tl gen herdr <workflow>     emit the inert Herdr JSON plan to stdout
+    tl launch herdr <workflow>  create the workspace in a running Herdr server
     tl list                     list available workflows
     tl validate                 validate all manifests against the schema
     tl install                  write all layouts into the tmuxp/zellij config dirs
@@ -33,7 +35,27 @@ def _cmd_gen(args: argparse.Namespace) -> int:
 
 
 def _cmd_launch(args: argparse.Namespace) -> int:
-    plan = gen_herdr.compile_plan(common.load_workflow(args.workflow), common.load_defaults())
+    workflow = common.load_workflow(args.workflow)
+    plan = gen_herdr.compile_plan(workflow, common.load_defaults())
+    label, cwd = args.label, args.cwd
+    if args.new is not None:
+        # Same convention as the tmux/zellij *-new helpers: <workflow dir>/<name>,
+        # workspace named <prefix><name>.
+        if not args.new or args.new in (".", "..") or os.sep in args.new:
+            print(f"error: --new needs a plain directory name, got {args.new!r}", file=sys.stderr)
+            return 2
+        cwd = os.path.join(launch_herdr._cwd(plan["cwd"]) or os.getcwd(), args.new)
+        os.makedirs(cwd, exist_ok=True)
+        label = label or workflow.get("prefix", "") + args.new
+    if cwd is not None:
+        cwd = os.path.abspath(os.path.expanduser(cwd))
+        if not os.path.isdir(cwd):
+            print(f"error: --cwd {cwd} is not a directory", file=sys.stderr)
+            return 2
+        plan["cwd"] = cwd
+        label = label or os.path.basename(cwd) or plan["label"]
+    if label:
+        plan["label"] = label
     for warning in plan["warnings"]:
         print(f"warning: {warning}", file=sys.stderr)
     for missing in launch_herdr.missing_dirs(plan):
@@ -99,6 +121,13 @@ def build_parser() -> argparse.ArgumentParser:
     launch.add_argument("workflow", help="workflow id")
     launch.add_argument("--run-commands", action="store_true",
                         help="also execute pane commands from manifest (opt-in)")
+    where = launch.add_mutually_exclusive_group()
+    where.add_argument("--cwd", metavar="DIR",
+                       help="run the workflow in DIR (tabs with their own cwd keep it); "
+                            "workspace label defaults to DIR's name")
+    where.add_argument("--new", metavar="NAME",
+                       help="create <workflow dir>/NAME and launch there, labelled <prefix>NAME")
+    launch.add_argument("--label", metavar="TEXT", help="Herdr workspace label")
     launch.set_defaults(func=_cmd_launch)
 
     lst = sub.add_parser("list", help="list available workflows")

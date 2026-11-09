@@ -21,7 +21,7 @@ unalias tai tproject tdk tpt tma tos tctf 2>/dev/null || true
 # expansion is eval-guarded so bash's parser never chokes on it; the zsh
 # branch keeps the original :A:h (canonical, symlink-resolved) behavior.
 if [ -n "${ZSH_VERSION:-}" ]; then
-  eval '_TMUX_LAYOUTS_DIR="${${(%):-%N}:A:h}"'
+  eval '_TMUX_LAYOUTS_DIR="${${(%):-%x}:A:h}"'
 else
   _TMUX_LAYOUTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
@@ -287,3 +287,11 @@ EOF
 }
 
 alias thelp='th'
+
+# tl + helper tab completion (zsh or bash).
+if [ -n "${ZSH_VERSION:-}" ]; then
+  eval '. "${${(%):-%x}:A:h}/tl-completion.zsh"'
+elif [ -n "${BASH_VERSION:-}" ]; then
+  # shellcheck source=tl-completion.bash
+  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tl-completion.bash"
+fi
