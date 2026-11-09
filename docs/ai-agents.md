@@ -8,14 +8,14 @@ Prerequisites: Python 3.10+ and Herdr 0.8.2 or newer (tested against 0.8.2 and 0
 
 ~~~sh
 pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"
-echo 'eval "$(tl init zsh)"' >> ~/.zshrc   # shortcuts + tab completion (bash: tl init bash)
+echo 'eval "$(command tl init zsh)"' >> ~/.zshrc   # shortcuts + tab completion (bash: tl init bash)
 ~~~
 
 Then, with Herdr running (`herdr`, or `herdr server` headless):
 
 ~~~sh
 cd ~/projects/my-app
-hag                              # = tl launch herdr ai-agents           (here, workspace "my-app")
+hag                              # = tl launch herdr ai-agents           (here, workspace "ai-my-app")
 hpt-new acme                     # = tl launch herdr pentest --new acme  (~/ops/pentest/acme, "pt-acme")
 hma .                            # = tl launch herdr malware-analysis .
 hls                              # list workspaces;  hks <id> closes one;  hh shows every shortcut
@@ -26,7 +26,7 @@ tl gen herdr ai-agents           # inspect the plan only; touches nothing
 
 | Option | Effect |
 |---|---|
-| `DIR` / `.` (or `--cwd DIR`) | Run the workflow in `DIR` instead of its manifest directory (tabs with their own `cwd` keep it). The workspace is named after `DIR` unless `--label` is given; workflows whose manifest directory is `$PWD` (ai-agents, project) are named after the current directory. |
+| `DIR` / `.` (or `--cwd DIR`) | Run the workflow in `DIR` instead of its manifest directory (tabs with their own `cwd` keep it). The workspace is named `<prefix><DIR name>` (e.g. `pt-acme`) unless `--label` is given; workflows whose manifest directory is `$PWD` (ai-agents, project) are named after the current directory the same way (`ai-my-app`). |
 | `--new NAME` | Create `<workflow dir>/NAME` and launch there, named `<prefix>NAME` (`pt-`, `ma-`, …, from the manifest). |
 | `--label TEXT` | Workspace name shown in Herdr. |
 | `--run-commands` | Also run the manifest pane commands (see below). |

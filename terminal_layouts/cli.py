@@ -72,7 +72,7 @@ def _cmd_launch(args: argparse.Namespace) -> int:
         cwd = os.path.abspath(os.path.expanduser(cwd))
         if not os.path.isdir(cwd):
             return _err(f"{cwd} is not a directory", 2)
-        label = label or os.path.basename(cwd)
+        label = label or workflow.get("prefix", "") + os.path.basename(cwd)
 
     rc = _launch_target(args, workflow, defaults, cwd or base, cwd is not None, label)
     if rc and made:  # do not leave an empty --new directory behind
@@ -113,6 +113,8 @@ def _launch_target(args: argparse.Namespace, workflow: dict, defaults: dict, cwd
     session = label or workflow["id"]
     try:
         if args.target == "tmux":
+            # tmux silently stores "." and ":" as "_", which breaks re-attaching by name.
+            session = session.replace(".", "_").replace(":", "_")
             return launch_mux.launch_tmux(workflow, cwd, session, detach=args.detach)
         return launch_mux.launch_zellij(workflow, cwd, session)
     except launch_mux.MuxError as exc:
@@ -126,7 +128,11 @@ def _cmd_init(args: argparse.Namespace) -> int:
     unknown = sorted(set(backends or []) - set(shell_init.BACKENDS))
     if unknown:
         return _err(f"unknown backend(s) {', '.join(unknown)} (choose from tmux, zellij, herdr)", 2)
-    sys.stdout.write(shell_init.render(args.shell, backends, force=args.force))
+    try:
+        script = shell_init.render(args.shell, backends, force=args.force)
+    except ValueError as exc:
+        return _err(str(exc), 1)
+    sys.stdout.write(script)
     return 0
 
 
@@ -181,7 +187,7 @@ def build_parser() -> argparse.ArgumentParser:
     launch.add_argument("workflow", help="workflow id (see `tl list`)")
     launch.add_argument("dir", nargs="?", metavar="DIR",
                         help="run in DIR ('.' = here) instead of the manifest directory; "
-                             "named after DIR unless --label")
+                             "named <prefix><DIR name> unless --label")
     launch.add_argument("--cwd", metavar="DIR", help="same as DIR")
     launch.add_argument("--new", metavar="NAME",
                         help="create <workflow dir>/NAME and launch there, named <prefix>NAME")
@@ -194,7 +200,7 @@ def build_parser() -> argparse.ArgumentParser:
     launch.set_defaults(func=_cmd_launch)
 
     init = sub.add_parser("init", help="print shell shortcuts + tab completion",
-                          description='Add  eval "$(tl init zsh)"  (or bash) to your shell rc.')
+                          description='Add  eval "$(command tl init zsh)"  (or bash) to your shell rc.')
     init.add_argument("shell", choices=["zsh", "bash"])
     init.add_argument("--backends", metavar="LIST",
                       help="comma-separated subset of tmux,zellij,herdr (default: all)")
@@ -222,7 +228,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args, extra = parser.parse_known_args(argv)
+    # argparse cannot take the optional DIR after options (`tl launch tmux pentest -d .`).
+    if extra and args.command == "launch" and args.dir is None and len(extra) == 1 \
+            and not extra[0].startswith("-"):
+        args.dir, extra = extra[0], []
+    if extra:
+        parser.error(f"unrecognized arguments: {' '.join(extra)}")
     return args.func(args)
 
 

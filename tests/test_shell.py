@@ -165,6 +165,26 @@ class ShellInit(unittest.TestCase):
         finally:
             hh.unlink()
 
+    def test_aliased_tl_and_cat_do_not_break_anything(self):
+        # oh-my-zsh's tmux plugin: alias tl='tmux list-sessions'; bat users: alias cat=bat.
+        setup = "alias tl='echo ALIASED'; alias cat='echo CAT'"
+        for shell in SHELLS:
+            with self.subTest(shell=shell):
+                out, log = self.run_sh(shell, "tpt-new acme; th | head -1", setup=setup,
+                                       init='eval "$(command tl init {shell})"')
+                self.assertEqual(out.returncode, 0, out.stderr)
+                self.assertEqual(log, ["tl [launch] [tmux] [pentest] [--new] [acme]"])
+                self.assertEqual(out.stdout.splitlines(), ["tmux shortcuts  (terminal-layouts)"])
+
+    def test_completion_registry_does_not_grow_on_re_eval(self):
+        for shell in SHELLS:
+            with self.subTest(shell=shell):
+                init = self.root / f"init.{shell}"
+                script = ('a="$_TLC_REGS_tmux"; source ' + str(init) + "; source " + str(init)
+                          + '; [ "$a" = "$_TLC_REGS_tmux" ] && [ -n "$a" ] && echo same')
+                out, _ = self.run_sh(shell, script)
+                self.assertEqual(out.stdout.split(), ["same"], out.stderr)
+
     def test_backends_subset_and_re_eval_are_clean(self):
         for shell in SHELLS:
             with self.subTest(shell=shell):
@@ -189,7 +209,16 @@ class ShellInit(unittest.TestCase):
             with self.subTest(shell=shell, tl="missing"):
                 out, _ = self.run_sh(shell, "true", init=f"source {REPO}/shell/tmux-layouts.zsh",
                                      env={"PATH": "/usr/bin:/bin"})
-                self.assertIn("need a tl that has `tl init`", out.stderr)
+                self.assertIn("tl not found", out.stderr)
+            with self.subTest(shell=shell, tl="broken"):
+                broken = self.root / "broken"
+                broken.mkdir(exist_ok=True)
+                (broken / "tl").write_text("#!/bin/sh\necho 'error: manifest is broken' >&2; exit 1\n")
+                (broken / "tl").chmod(0o755)
+                out, _ = self.run_sh(shell, "true", init=f"source {REPO}/shell/tmux-layouts.zsh",
+                                     env={"PATH": f"{broken}:/usr/bin:/bin"})
+                self.assertIn("error: manifest is broken", out.stderr)  # the real cause is shown
+                self.assertIn("`tl init` failed", out.stderr)
 
     def test_zsh_completion_is_registered_for_owned_names_only(self):
         script = ("print -r -- ${_comps[tl]} ${_comps[tpt]} ${_comps[tpt-new]} ${_comps[ta]} "

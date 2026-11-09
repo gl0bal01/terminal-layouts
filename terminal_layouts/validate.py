@@ -35,15 +35,19 @@ def main() -> int:
         else:
             print(f"OK: {wf_id}")
 
-    # `tl init` turns each shortcut into t<sc>/z<sc>/h<sc>: they must be unique.
-    owners: dict[str, str] = {}
-    for wf_id in workflows:
-        shortcut = common.load_workflow(wf_id).get("shortcut")
-        if shortcut and shortcut in owners:
-            errors += 1
-            print(f"FAIL: {wf_id}: shortcut {shortcut!r} already used by {owners[shortcut]}")
-        elif shortcut:
-            owners[shortcut] = wf_id
+    # `tl init` turns each shortcut into t<sc>/z<sc>/h<sc>, and sessions launched
+    # from a directory are named <prefix><dir>: both must be unique per workflow.
+    for field in ("shortcut", "prefix"):
+        owners: dict[str, str] = {}
+        for wf_id in workflows:
+            value = common.load_workflow(wf_id).get(field)
+            if value is None or (field == "shortcut" and not value):
+                continue
+            if value in owners:
+                errors += 1
+                print(f"FAIL: {wf_id}: {field} {value!r} already used by {owners[value]}")
+            else:
+                owners[value] = wf_id
 
     if errors:
         print(f"\n{errors} workflow(s) failed validation")

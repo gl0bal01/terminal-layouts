@@ -217,13 +217,13 @@ class LiveHerdr(unittest.TestCase):
                 out = subprocess.run(argv, cwd=project, capture_output=True, text=True)
                 self.assertEqual(out.returncode, 0, out.stderr)
                 live = {w["label"]: w["workspace_id"] for w in herdr("workspace", "list")["workspaces"]}
-                self.assertEqual(sorted(live), sorted(["demo", f"pt-acme-{shell}"]))
+                self.assertEqual(sorted(live), sorted(["ai-demo", f"pt-acme-{shell}"]))
                 for label, ws in live.items():
                     self.assertRegex(out.stdout, rf"{ws}\s+{label}\s+\(\d+ tabs, \d+ panes\)")
                 engagement = Path(os.environ["HOME"]) / "ops" / "pentest" / f"acme-{shell}"
                 cwds = {p["cwd"] for p in herdr("pane", "list", "--workspace", live[f"pt-acme-{shell}"])["panes"]}
                 self.assertEqual(cwds, {str(engagement)})
-                cwds = {p["cwd"] for p in herdr("pane", "list", "--workspace", live["demo"])["panes"]}
+                cwds = {p["cwd"] for p in herdr("pane", "list", "--workspace", live["ai-demo"])["panes"]}
                 self.assertEqual(cwds, {str(project)})
                 closed = subprocess.run(
                     argv[:-1] + [argv[-1].replace(script, f"source {helpers}\nhks {' '.join(live.values())}")],

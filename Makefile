@@ -139,5 +139,5 @@ doctor: ## Check required + recommended tools are installed
 setup: install ## Install layouts + print shell setup hint
 	@echo ""
 	@echo "Add to your ~/.zshrc (or ~/.bashrc with bash):"
-	@echo '  eval "$$(tl init zsh)"'
+	@echo '  eval "$$(command tl init zsh)"'
 	@echo "Shortcuts for tmux (t*), Zellij (z*) and Herdr (h*) + tab completion; th / zh / hh for help."

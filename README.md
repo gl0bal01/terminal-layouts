@@ -62,7 +62,7 @@ cd terminal-layouts
 
 make doctor     # check tmux / tmuxp / zellij / herdr are present
 make install    # write all 8 workflows to ~/.config (tmuxp + zellij)
-echo 'eval "$(tl init zsh)"' >> ~/.zshrc     # shortcuts + tab completion (bash: tl init bash)
+echo 'eval "$(command tl init zsh)"' >> ~/.zshrc     # shortcuts + tab completion (bash: tl init bash)
 ```
 
 `make install` writes every workflow into your multiplexer config dirs:
@@ -75,7 +75,7 @@ Then launch any workspace with a shortcut (or the installed layouts directly):
 ```bash
 tdk                                  # tmux:   docker workspace   (= tl launch tmux docker)
 zpt-new acme                         # Zellij: ~/ops/pentest/acme, session pt-acme
-hag                                  # Herdr:  ai-agents here, named after this directory
+hag                                  # Herdr:  ai-agents here, named ai-<this directory>
 tmuxp load -y docker                 # plain tmuxp / zellij --layout pentest still work
 ```
 
@@ -126,7 +126,7 @@ layout file to install: `tl` creates the workspace directly in the running Herdr
 
 ```bash
 pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"   # Herdr support is newer than PyPI 0.1.0
-echo 'eval "$(tl init zsh)"' >> ~/.zshrc                                  # shortcuts + tab completion
+echo 'eval "$(command tl init zsh)"' >> ~/.zshrc                                  # shortcuts + tab completion
 ```
 
 **Every day**
@@ -134,7 +134,7 @@ echo 'eval "$(tl init zsh)"' >> ~/.zshrc                                  # shor
 ```bash
 herdr                 # start Herdr (or work from a pane inside it)
 cd ~/projects/my-app
-hag                   # ai-agents workbench here, workspace named "my-app"
+hag                   # ai-agents workbench here, workspace named "ai-my-app"
 hpt-new acme          # pentest in ~/ops/pentest/acme, workspace "pt-acme"
 hma .                 # malware-analysis in the current directory
 hls                   # list workspaces      hks <id>  close one      hh   all helpers
@@ -239,8 +239,8 @@ dropped as noise.)
 One line in `~/.zshrc` (or `~/.bashrc` with `bash`) — no clone needed, any position in the file:
 
 ```bash
-eval "$(tl init zsh)"                        # every backend
-eval "$(tl init zsh --backends tmux,herdr)"  # only the ones you use
+eval "$(command tl init zsh)"                        # every backend
+eval "$(command tl init zsh --backends tmux,herdr)"  # only the ones you use
 ```
 
 Every workflow's `shortcut:` becomes the same commands on every backend (`t` = tmux, `z` = Zellij,
@@ -255,7 +255,7 @@ Every workflow's `shortcut:` becomes the same commands on every backend (`t` = t
 
 | every shortcut also takes | |
 |---|---|
-| `tpt .` / `tpt ~/dir` | run in that directory instead of the manifest one, named after it |
+| `tpt .` / `tpt ~/dir` | run in that directory instead of the manifest one, named `<prefix><dir>` (`pt-dir`) |
 | `tpt-new acme` | create `<workflow dir>/acme`, named `<prefix>acme` (`pt-acme`) |
 | `--label NAME` | session / workspace name · tmux: `-d` (detached) · Herdr: `--run-commands` |
 
@@ -266,6 +266,7 @@ Every workflow's `shortcut:` becomes the same commands on every backend (`t` = t
 
 - **Tab completion** (zsh and bash) for `tl` and every shortcut: workflow names, options, directories,
   live tmux/Zellij sessions and Herdr workspace ids.
+- `command tl` keeps working when a plugin aliases `tl` (oh-my-zsh's tmux plugin does).
 - **Your names win:** a name that already exists in your shell (zoxide's `z`, an oh-my-zsh alias, a
   command) is kept and listed once at startup. `tl init zsh --force` replaces them;
   `TL_INIT_QUIET=1` hides the notice.

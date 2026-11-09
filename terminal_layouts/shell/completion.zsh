@@ -11,10 +11,10 @@ _tl() {
   local -a workflows
   case $line[1] in
     gen)
-      workflows=(${(f)"$(tl list 2>/dev/null)"})
+      workflows=(${(f)"$(command tl list 2>/dev/null)"})
       _arguments '1:target:(tmux zellij herdr)' "2:workflow:(${workflows})" ;;
     launch)
-      workflows=(${(f)"$(tl list 2>/dev/null)"})
+      workflows=(${(f)"$(command tl list 2>/dev/null)"})
       _arguments '1:target:(herdr tmux zellij)' "2:workflow:(${workflows})" \
         '3::directory (. = here):_directories' \
         '(--new 3)--cwd[run in this directory]:directory:_directories' \
@@ -65,13 +65,13 @@ _tlc_zellij_sessions() {
   _describe -t sessions 'Zellij session' s
 }
 
-# _TLC_REGS holds "function:name" pairs from every `tl init` eval; only names
+# _TLC_REGS_<backend> hold "function:name" pairs from `tl init`; only names
 # this integration owns (_TL_OWNED) get completion, never a command it skipped.
 _tlc_register_all() {
   (( $+functions[compdef] )) || return 1
   compdef _tl tl terminal-layouts
   local entry
-  for entry in ${=_TLC_REGS}; do
+  for entry in ${=_TLC_REGS_tmux:-} ${=_TLC_REGS_zellij:-} ${=_TLC_REGS_herdr:-}; do
     case " $_TL_OWNED " in *" ${entry#*:} "*) compdef ${entry%%:*} ${entry#*:} ;; esac
   done
 }

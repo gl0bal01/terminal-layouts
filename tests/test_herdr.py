@@ -269,12 +269,12 @@ class CliLaunchOptions(unittest.TestCase):
         self.assertEqual((rc, plan["label"]), (0, "Pentest"))
         # Workflows that run in the current directory are named after it.
         rc, plan, _ = self.launch("ai-agents")
-        self.assertEqual((rc, plan["label"], plan["cwd"]), (0, os.path.basename(os.getcwd()), os.getcwd()))
+        self.assertEqual((rc, plan["label"], plan["cwd"]), (0, "ai-" + os.path.basename(os.getcwd()), os.getcwd()))
 
     def test_cwd_overrides_directory_and_names_the_workspace(self):
         with tempfile.TemporaryDirectory() as tmp:
             rc, plan, _ = self.launch("pentest", "--cwd", tmp)
-            self.assertEqual((rc, plan["cwd"], plan["label"]), (0, tmp, os.path.basename(tmp)))
+            self.assertEqual((rc, plan["cwd"], plan["label"]), (0, tmp, "pt-" + os.path.basename(tmp)))
             rc, plan, _ = self.launch("pentest", "--cwd", tmp, "--label", "acme")
             self.assertEqual(plan["label"], "acme")
             # Tabs keep their own directories; the rest inherit --cwd.
@@ -286,8 +286,8 @@ class CliLaunchOptions(unittest.TestCase):
             target = os.path.join(home, "ops", "pentest", "acme")
             self.assertEqual((rc, plan["cwd"], plan["label"]), (0, target, "pt-acme"))
             self.assertTrue(os.path.isdir(target))
-            rc, plan, _ = self.launch("project", "--new", "site")
-            self.assertEqual(plan["label"], "site")
+            rc, plan, _ = self.launch("claude-projects", "--new", "site")
+            self.assertEqual(plan["label"], "cp-site")
 
     def test_bad_directories_are_rejected_before_launch(self):
         for argv in (["--cwd", "/nonexistent/dir"], ["--new", "../escape"], ["--new", "a/b"],

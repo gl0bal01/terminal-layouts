@@ -9,6 +9,7 @@ of being clobbered, unless --force.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 from terminal_layouts import common
@@ -39,9 +40,12 @@ SESSIONS = {
         ("ks", None, "close <workspace-id>...", "_tlc_hks"),
     ],
 }
-RESERVED = {s for entries in SESSIONS.values() for s, *_ in entries} | {"h", "help"}
 # Old hand-written Zellij names kept working: name -> workflow id.
 LEGACY = {"zellij": {"zp": "claude-projects", "zo": "project"}}
+RESERVED = ({s for entries in SESSIONS.values() for s, *_ in entries} | {"h", "help"}
+            | {name[1:] for names in LEGACY.values() for name in names})
+_NAME = re.compile(r"^[a-z][a-z0-9]*$")
+_WORKFLOW_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 
 HERDR_HLS = r'''local out
   out="$(herdr workspace list)" || return $?
@@ -97,8 +101,13 @@ def _workflows() -> list[dict]:
         shortcut = wf.get("shortcut")
         if not shortcut:
             continue
+        # These end up unquoted in code every shell runs at startup: check them here too.
+        if not _WORKFLOW_ID.match(wf_id) or not _NAME.match(str(shortcut)):
+            raise ValueError(f"{wf_id}: invalid workflow id or shortcut {shortcut!r} (see tl validate)")
         if shortcut in RESERVED:
             raise ValueError(f"{wf_id}: shortcut {shortcut!r} is reserved for session helpers")
+        if any(w["shortcut"] == shortcut for w in out):
+            raise ValueError(f"{wf_id}: shortcut {shortcut!r} is used twice (see tl validate)")
         cwd = common.resolve_cwd(wf, defaults) or "$PWD"
         out.append({"id": wf_id, "shortcut": shortcut, "prefix": wf.get("prefix", ""),
                     "description": wf.get("description", ""),
@@ -119,16 +128,16 @@ def _backend(backend: str, workflows: list[dict]) -> tuple[str, list[str]]:
     out.append(f"if _tl_claim {p}; then alias {p}='{backend}'; fi\n")
     for wf in workflows:
         name = p + wf["shortcut"]
-        out.append(_define(name, f'tl launch {backend} {wf["id"]} "$@"'))
+        out.append(_define(name, f'command tl launch {backend} {wf["id"]} "$@"'))
         out.append(_define(f"{name}-new",
                            f'if [ $# -eq 0 ]; then echo "Usage: {name}-new <name> [options]" >&2; return 2; fi\n'
-                           f'  tl launch {backend} {wf["id"]} --new "$@"'))
+                           f'  command tl launch {backend} {wf["id"]} --new "$@"'))
         regs += [f"_tlc_launch_{backend}:{name}", f"_tlc_new_{backend}:{name}-new"]
         help_rows.append(f"  {name + ' [DIR|.]':<20} {wf['id']} in {wf['dir']} — {wf['description']}")
         help_rows.append(f"  {name + '-new <name>':<20} {wf['base']}<name>, named {wf['prefix']}<name>")
     for legacy, wf_id in LEGACY.get(backend, {}).items():
         if any(w["id"] == wf_id for w in workflows):
-            out.append(_define(legacy, f'tl launch {backend} {wf_id} "$@"'))
+            out.append(_define(legacy, f'command tl launch {backend} {wf_id} "$@"'))
             regs.append(f"_tlc_launch_{backend}:{legacy}")
             help_rows.append(f"  {legacy + ' [DIR|.]':<20} same as above for {wf_id} (older name)")
     session_rows = []
@@ -143,13 +152,13 @@ def _backend(backend: str, workflows: list[dict]) -> tuple[str, list[str]]:
     help_text = "\n".join([
         f"{TITLE[backend]} shortcuts  (terminal-layouts)",
         f"  Each runs: tl launch {backend} <workflow> [DIR|.] [--new NAME] [--label NAME] {EXTRA[backend]}".rstrip(),
-        "  DIR / . = run there instead of the manifest directory, named after it.",
+        "  DIR / . = run there instead of the manifest directory, named <prefix><dir name>.",
         "", *help_rows, "", *session_rows, "",
         f"  {p:<20} {backend}",
         "Agents are never started for you: type opencode / pi / claude / codex in a pane."
         if backend == "herdr" else "Layouts are generated fresh from the manifest on every launch.",
     ])
-    out.append(f"_tl_help_{backend}() {{\n  cat <<'__TL_HELP__'\n{help_text}\n__TL_HELP__\n}}\n")
+    out.append(f"_tl_help_{backend}() {{\n  command cat <<'__TL_HELP__'\n{help_text}\n__TL_HELP__\n}}\n")
     for name in (f"{p}h", f"{p}help"):
         out.append(_define(name, f"_tl_help_{backend}"))
     return "".join(out), regs
@@ -160,12 +169,13 @@ def render(shell: str, backends: list[str] | None = None, force: bool = False) -
         raise ValueError(f"unsupported shell {shell!r} (zsh or bash)")
     chosen = [b for b in BACKENDS if b in (backends or BACKENDS)]
     workflows = _workflows()
-    parts, regs = [PRELUDE.format(shell=shell, force="1" if force else "")], []
+    parts = [PRELUDE.format(shell=shell, force="1" if force else "")]
     for backend in chosen:
         code, backend_regs = _backend(backend, workflows)
         parts.append(code)
-        regs += backend_regs
-    parts.append(f'\n_TLC_REGS="${{_TLC_REGS:-}} {" ".join(regs)}"\n\n')
+        # One variable per backend, overwritten on re-eval: never grows.
+        parts.append(f'_TLC_REGS_{backend}="{" ".join(backend_regs)}"\n')
+    parts.append("\n")
     parts.append((Path(__file__).parent / "shell" / f"completion.{shell}").read_text(encoding="utf-8"))
     parts.append("\n" + EPILOGUE)
     return "".join(parts)

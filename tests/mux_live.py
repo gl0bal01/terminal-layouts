@@ -117,9 +117,11 @@ class LiveMux(unittest.TestCase):
             with self.subTest(workflow=workflow):
                 out = self.tl("launch", "tmux", workflow, "-d")
                 self.assertEqual(out.returncode, 0, out.stderr)
-                plan = gen_herdr.compile_plan(common.load_workflow(workflow), common.load_defaults())
-                base = plan["cwd"].replace("$PWD", str(self.project))
-                self.assert_tmux_session(workflow, workflow, Path(base))
+                wf = common.load_workflow(workflow)
+                plan = gen_herdr.compile_plan(wf, common.load_defaults())
+                here = plan["cwd"] == "$PWD"  # named <prefix><dir>, so never shared
+                session = wf["prefix"] + self.project.name if here else workflow
+                self.assert_tmux_session(session, workflow, self.project if here else Path(plan["cwd"]))
         with self.subTest(option="--new"):
             out = self.tl("launch", "tmux", "pentest", "--new", "acme", "-d")
             self.assertEqual(out.returncode, 0, out.stderr)
@@ -127,7 +129,7 @@ class LiveMux(unittest.TestCase):
         with self.subTest(option="."):
             out = self.tl("launch", "tmux", "malware-analysis", ".", "-d")
             self.assertEqual(out.returncode, 0, out.stderr)
-            self.assert_tmux_session("demo", "malware-analysis", self.project)
+            self.assert_tmux_session("ma-demo", "malware-analysis", self.project)
 
     def test_tmux_shortcuts_in_bash_and_zsh(self):
         for shell in ("bash", "zsh"):

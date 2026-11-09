@@ -39,14 +39,14 @@ _tl_complete() {
     done
     case "$cmd" in
       gen)
-        case $n in 0) words="tmux zellij herdr" ;; 1) words="$(tl list 2>/dev/null)" ;; esac ;;
+        case $n in 0) words="tmux zellij herdr" ;; 1) words="$(command tl list 2>/dev/null)" ;; esac ;;
       launch)
         if [[ "$cur" == -* ]]; then
           words="--cwd --new --help $(_tlc_opts "$target")"
         else
           case $n in
             0) words="herdr tmux zellij" ;;
-            1) words="$(tl list 2>/dev/null)" ;;
+            1) words="$(command tl list 2>/dev/null)" ;;
             2) _tlc_dirs "$cur"; return ;;
           esac
         fi ;;
@@ -93,12 +93,12 @@ _tlc_zellij_sessions() {
   COMPREPLY=($(compgen -W "$(zellij list-sessions --short --no-formatting 2>/dev/null)" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
-# _TLC_REGS holds "function:name" pairs from every `tl init` eval; only names
+# _TLC_REGS_<backend> hold "function:name" pairs from `tl init`; only names
 # this integration owns (_TL_OWNED) get completion, never a command it skipped.
 _tlc_register_all() {
   complete -F _tl_complete tl terminal-layouts
   local entry
-  for entry in $_TLC_REGS; do
+  for entry in ${_TLC_REGS_tmux:-} ${_TLC_REGS_zellij:-} ${_TLC_REGS_herdr:-}; do
     case " $_TL_OWNED " in *" ${entry#*:} "*) complete -F "${entry%%:*}" "${entry#*:}" ;; esac
   done
 }

@@ -89,14 +89,39 @@ class CliLaunchMux(unittest.TestCase):
             self.assertEqual((seen["cwd"], seen["session"]), (home, "x"))
             code, seen, _ = self.launch("tmux", "pentest", ".", "-d")
             self.assertEqual((seen["cwd"], seen["session"], seen["detach"]),
-                             (os.getcwd(), os.path.basename(os.getcwd()), True))
+                             (os.getcwd(), "pt-" + os.path.basename(os.getcwd()), True))
             code, seen, _ = self.launch("tmux", "pentest", "--new", "acme")
             self.assertEqual((seen["cwd"], seen["session"]), (str(base / "acme"), "pt-acme"))
             self.assertTrue((base / "acme").is_dir())
 
+    def test_dir_may_follow_options(self):
+        code, seen, _ = self.launch("tmux", "project", "-d", "/tmp")
+        self.assertEqual((code, seen["cwd"], seen["detach"]), (0, "/tmp", True))
+        code, seen, _ = self.launch("zellij", "project", "--label", "x", "/tmp")
+        self.assertEqual((seen["cwd"], seen["session"]), ("/tmp", "x"))
+        with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):
+            cli.main(["launch", "tmux", "project", "/tmp", "/srv"])
+
+    def test_tmux_session_names_avoid_dot_and_colon(self):
+        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HOME": home}):
+            Path(home, "ops", "pentest").mkdir(parents=True)
+            code, seen, _ = self.launch("tmux", "pentest", "--new", "acme.com")
+            self.assertEqual((code, seen["session"]), (0, "pt-acme_com"))
+            self.assertTrue(Path(home, "ops", "pentest", "acme.com").is_dir())
+            code, seen, _ = self.launch("zellij", "pentest", "--new", "acme.com")
+            self.assertEqual(seen["session"], "pt-acme.com")  # Zellij keeps it
+
     def test_project_runs_in_the_current_directory(self):
+        here = os.path.basename(os.getcwd())
         code, seen, _ = self.launch("tmux", "project")
-        self.assertEqual((code, seen["cwd"], seen["session"]), (0, os.getcwd(), os.path.basename(os.getcwd())))
+        self.assertEqual((code, seen["cwd"], seen["session"]), (0, os.getcwd(), here))
+        # Prefixed, so two workflows launched from one directory never share a session.
+        code, seen, _ = self.launch("zellij", "ai-agents")
+        self.assertEqual((code, seen["session"]), (0, "ai-" + here))
+        code, seen, _ = self.launch("tmux", "claude-projects", ".")
+        self.assertEqual(seen["session"], "cp-" + here)
+        prefixes = [common.load_workflow(w)["prefix"] for w in common.list_workflows()]
+        self.assertEqual(len(prefixes), len(set(prefixes)), "prefixes must be unique")
 
     def test_errors(self):
         with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HOME": home}):
@@ -157,6 +182,30 @@ class ShellInitRender(unittest.TestCase):
                 shell_init.render("zsh")
         with self.assertRaisesRegex(ValueError, "unsupported shell"):
             shell_init.render("fish")
+
+    def test_unsafe_or_conflicting_shortcuts_are_clean_errors(self):
+        real = common.load_workflow
+        for bad in ("Pt", "p t", "a;rm", "p", "o"):  # p/o: Zellij keeps zp/zo
+            with self.subTest(shortcut=bad):
+                with patch.object(common, "load_workflow",
+                                  lambda w, bad=bad: dict(real(w), shortcut=bad) if w == "pentest" else real(w)):
+                    err = io.StringIO()
+                    with redirect_stderr(err), redirect_stdout(io.StringIO()):
+                        self.assertEqual(cli.main(["init", "zsh"]), 1)
+                    self.assertIn("error: pentest:", err.getvalue())
+                    self.assertNotIn("Traceback", err.getvalue())
+
+    def test_registry_is_per_backend_so_re_eval_does_not_grow(self):
+        script = shell_init.render("bash")
+        self.assertNotIn("_TLC_REGS=", script)
+        for backend in ("tmux", "zellij", "herdr"):
+            self.assertIn(f'_TLC_REGS_{backend}="', script)
+
+    def test_generated_bodies_bypass_aliases(self):
+        script = shell_init.render("zsh")
+        self.assertIn("command tl launch tmux pentest", script)
+        self.assertIn("command cat <<'__TL_HELP__'", script)
+        self.assertNotIn("\n  tl launch", script)
 
     def test_cli_rejects_unknown_backend(self):
         err = io.StringIO()
