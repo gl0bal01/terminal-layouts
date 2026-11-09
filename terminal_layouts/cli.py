@@ -37,7 +37,7 @@ def _cmd_gen(args: argparse.Namespace) -> int:
 def _cmd_launch(args: argparse.Namespace) -> int:
     workflow = common.load_workflow(args.workflow)
     plan = gen_herdr.compile_plan(workflow, common.load_defaults())
-    label, cwd = args.label, args.cwd
+    label, cwd, made = args.label, args.cwd, None
     if args.new is not None:
         # Same convention as the tmux/zellij *-new helpers: <workflow dir>/<name>,
         # workspace named <prefix><name>.
@@ -45,7 +45,12 @@ def _cmd_launch(args: argparse.Namespace) -> int:
             print(f"error: --new needs a plain directory name, got {args.new!r}", file=sys.stderr)
             return 2
         cwd = os.path.join(launch_herdr._cwd(plan["cwd"]) or os.getcwd(), args.new)
-        os.makedirs(cwd, exist_ok=True)
+        made = None if os.path.isdir(cwd) else cwd
+        try:
+            os.makedirs(cwd, exist_ok=True)
+        except OSError as exc:
+            print(f"error: cannot create {cwd}: {exc.strerror}", file=sys.stderr)
+            return 1
         label = label or workflow.get("prefix", "") + args.new
     if cwd is not None:
         cwd = os.path.abspath(os.path.expanduser(cwd))
@@ -65,6 +70,11 @@ def _cmd_launch(args: argparse.Namespace) -> int:
         workspace_id = launch_herdr.launch(plan, run_commands=args.run_commands)
     except launch_herdr.HerdrError as exc:
         print(f"error: {exc}", file=sys.stderr)
+        if made:  # do not leave an empty --new directory behind
+            try:
+                os.rmdir(made)
+            except OSError:
+                pass
         return 1
     print(f"Herdr workspace created: {workspace_id}")
     return 0

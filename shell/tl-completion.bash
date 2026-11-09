@@ -1,15 +1,21 @@
 # tl-completion.bash — bash tab completion for `tl` (terminal-layouts) and the
 # Herdr helpers. Sourced by shell/*-layouts.zsh when they run under bash.
-# Works with bash 3.2+ (macOS). Directory names are split on newlines only.
-# shellcheck disable=SC2207  # COMPREPLY=($(compgen ...)) with IFS=newline
+# Works with bash 3.2+ (macOS): no mapfile; compopt is optional (bash 4+).
+# shellcheck disable=SC2207  # COMPREPLY=($(compgen ...)): words never contain spaces
+
+# Directory candidates, one per line, inserted quoted (names may have spaces).
+_tlc_dirs() {
+  local IFS=$'\n'
+  compopt -o filenames 2>/dev/null
+  COMPREPLY=($(compgen -d -- "$1"))
+}
 
 _tl_complete() {
-  local IFS=$'\n'
   local cur="${COMP_WORDS[COMP_CWORD]}" prev="${COMP_WORDS[COMP_CWORD-1]}"
   local cmd="${COMP_WORDS[1]:-}" words="" i n=0
   COMPREPLY=()
   case "$prev" in
-    --cwd|--tmuxp-dir|--zellij-dir) COMPREPLY=($(compgen -d -- "$cur")); return ;;
+    --cwd|--tmuxp-dir|--zellij-dir) _tlc_dirs "$cur"; return ;;
     --new|--label) return ;;
   esac
   if (( COMP_CWORD == 1 )); then
@@ -35,29 +41,41 @@ _tl_complete() {
       install) words="--tmux-only --zellij-only --tmuxp-dir --zellij-dir --help" ;;
     esac
   fi
-  words="${words// /$'\n'}"
   COMPREPLY=($(compgen -W "$words" -- "$cur"))
 }
 
-_hk_complete() {
-  local IFS=$'\n'
+_tlc_hks() {
   local ids
   ids="$(herdr workspace list 2>/dev/null | python3 -c '
 import json, sys
-print("\n".join(w["workspace_id"] for w in json.load(sys.stdin)["result"]["workspaces"]))
+print(" ".join(w["workspace_id"] for w in json.load(sys.stdin)["result"]["workspaces"]))
 ' 2>/dev/null)"
   COMPREPLY=($(compgen -W "$ids" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
-_herdr_launch_complete() {
-  local IFS=$'\n'
-  local cur="${COMP_WORDS[COMP_CWORD]}" words="--run-commands --label"
+# hai/hdk/...: optional "." first, then tl launch options.
+_tlc_here() {
+  local words="--run-commands --label"
   (( COMP_CWORD == 1 )) && words=". $words"
-  words="${words// /$'\n'}"
-  COMPREPLY=($(compgen -W "$words" -- "$cur"))
+  COMPREPLY=($(compgen -W "$words" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+
+# hag: optional directory first, then options.
+_tlc_hag() {
+  local cur="${COMP_WORDS[COMP_CWORD]}"
+  if (( COMP_CWORD == 1 )) && [[ "$cur" != -* ]]; then _tlc_dirs "$cur"; return; fi
+  COMPREPLY=($(compgen -W "--run-commands --label" -- "$cur"))
+}
+
+# *-new and hproject: a free-form name/label first, then options.
+_tlc_named() {
+  COMPREPLY=()
+  (( COMP_CWORD == 1 )) && return
+  COMPREPLY=($(compgen -W "--run-commands --label" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
 complete -F _tl_complete tl terminal-layouts
-complete -F _hk_complete hk
-complete -F _herdr_launch_complete hai hdk hpt hma hos hctf
-complete -o dirnames hag
+complete -F _tlc_hks hks
+complete -F _tlc_here hai hdk hpt hma hos hctf
+complete -F _tlc_hag hag
+complete -F _tlc_named hproject hai-new hdk-new hpt-new hma-new hos-new hctf-new

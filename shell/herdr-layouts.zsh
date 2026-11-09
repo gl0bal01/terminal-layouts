@@ -8,6 +8,10 @@
 # in that session. Directories come from the manifest (defaults.yaml).
 # Extra arguments go to `tl launch`, e.g.  hpt . --run-commands
 
+# A same-named alias would make zsh refuse the function definitions below.
+unalias hag hproject hai hdk hpt hma hos hctf hls hks hhelp \
+  hai-new hdk-new hpt-new hma-new hos-new hctf-new 2>/dev/null || true
+
 command -v h >/dev/null 2>&1 || alias h='herdr'
 
 _herdr_tl() {
@@ -90,9 +94,9 @@ for w in json.load(sys.stdin)["result"]["workspaces"]:
 '
 }
 
-hk() {
+hks() {
   if (( $# == 0 )); then
-    echo "Usage: hk <workspace-id>...   (ids from hls)"
+    echo "Usage: hks <workspace-id>...   (ids from hls)"
     return 2
   fi
   local id rc=0
@@ -102,10 +106,12 @@ hk() {
   return $rc
 }
 
-hh() {
+hhelp() {
+  local short=""
+  case "$(alias h 2>/dev/null)" in *herdr*) short="  (or: h)" ;; esac
+  printf '%s\n' "Herdr workspaces  (terminal-layouts)" \
+    "  Start Herdr first:  herdr$short   — nothing to install, layouts are created live."
   cat <<'EOF'
-Herdr workspaces  (terminal-layouts)
-  Start Herdr first:  herdr  (h)   — nothing to install, layouts are created live.
   Extra args go to `tl launch`:  --run-commands  --label <text>
 
   hag [dir]          ai-agents workbench in dir (default: here), labelled <dir name>
@@ -130,14 +136,17 @@ Create named workspaces  (<workflow dir>/<name>, label <prefix><name>)
 
 Workspaces
   hls                list workspaces (* = focused)
-  hk <id>...         close workspaces
+  hks <id>...        close workspaces
 
 Agents are never started for you: type opencode / pi / claude / codex in a pane.
-Tab completion works for tl, hk and these helpers.
+Tab completion (zsh, bash) covers tl, hks <TAB> (live workspace ids) and these helpers.
 EOF
 }
 
-alias hhelp='hh'
+# `hh` like th / zh, unless that name is already a real command (e.g. old HSTR).
+case "$(command -v hh 2>/dev/null)" in
+  ""|hh) hh() { hhelp "$@"; } ;;
+esac
 
 # tl + helper tab completion (zsh or bash).
 if [ -n "${ZSH_VERSION:-}" ]; then

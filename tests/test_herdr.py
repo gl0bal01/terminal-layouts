@@ -7,6 +7,7 @@ import os
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 from unittest.mock import patch
 
 from terminal_layouts import cli, common, gen_herdr, launch_herdr
@@ -292,6 +293,27 @@ class CliLaunchOptions(unittest.TestCase):
                 rc, plan, err = self.launch("pentest", *argv)
                 self.assertEqual((rc, plan), (2, None))
                 self.assertIn("error:", err)
+
+    def test_failed_launch_removes_only_the_directory_it_created(self):
+        def failing(plan, run_commands=False):
+            raise launch_herdr.HerdrError("Herdr server unavailable")
+
+        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HOME": home}):
+            base = os.path.join(home, "ops", "pentest")
+            os.makedirs(os.path.join(base, "kept"))
+            for name, survives in (("fresh", False), ("kept", True)):
+                with self.subTest(name=name), patch.object(launch_herdr, "launch", failing), \
+                        redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                    self.assertEqual(cli.main(["launch", "herdr", "pentest", "--new", name]), 1)
+                self.assertEqual(os.path.isdir(os.path.join(base, name)), survives)
+
+    def test_uncreatable_new_directory_is_a_clean_error(self):
+        with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {"HOME": home}):
+            (Path(home) / "ops").write_text("a file, not a directory")
+            rc, plan, err = self.launch("pentest", "--new", "acme")
+            self.assertEqual((rc, plan), (1, None))
+            self.assertIn("error: cannot create", err)
+            self.assertNotIn("Traceback", err)
 
     def test_cwd_and_new_are_exclusive(self):
         with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):

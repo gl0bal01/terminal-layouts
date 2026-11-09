@@ -77,7 +77,7 @@ class ShellHelpers(unittest.TestCase):
             "hctf --label x": "tl [launch] [herdr] [ctf] [--label] [x]",
             "hpt-new acme": "tl [launch] [herdr] [pentest] [--new] [acme]",
             "hai-new site --run-commands": "tl [launch] [herdr] [project] [--new] [site] [--run-commands]",
-            "hk w1 w2": "herdr [workspace] [close] [w1]\nherdr [workspace] [close] [w2]",
+            "hks w1 w2": "herdr [workspace] [close] [w1]\nherdr [workspace] [close] [w2]",
         }
         for shell in SHELLS:
             for command, expected in cases.items():
@@ -88,7 +88,7 @@ class ShellHelpers(unittest.TestCase):
 
     def test_usage_errors_run_nothing(self):
         for shell in SHELLS:
-            for command in ("hpt-new", "hdk-new --run-commands", "hk"):
+            for command in ("hpt-new", "hdk-new --run-commands", "hks"):
                 with self.subTest(shell=shell, command=command):
                     out, log = self.run_sh(shell, command)
                     self.assertEqual(out.returncode, 2)
@@ -114,21 +114,67 @@ class ShellHelpers(unittest.TestCase):
                 self.assertIn("`tl` not found", out.stderr)
 
     def test_completion_is_registered_in_both_shells(self):
-        zsh = "print -l $_comps[tl] $_comps[hk] $_comps[hpt] $_comps[hpt-new] $_comps[hag] $_comps[hproject]"
+        zsh = "print -l $_comps[tl] $_comps[hks] $_comps[hpt] $_comps[hpt-new] $_comps[hag] $_comps[hproject]"
         out, _ = self.run_sh("zsh", zsh)
-        self.assertEqual(out.stdout.split(), ["_tl", "_hk", "_tlc_here", "_tlc_new", "_tlc_hag", "_tlc_hproject"])
+        self.assertEqual(out.stdout.split(),
+                         ["_tl", "_tlc_hks", "_tlc_here", "_tlc_new", "_tlc_hag", "_tlc_hproject"])
         self.assertEqual(out.stderr, "")
-        out, _ = self.run_sh("bash", "complete -p tl hk hpt hag")
-        self.assertIn("complete -F _tl_complete tl", out.stdout)
-        self.assertIn("complete -F _hk_complete hk", out.stdout)
-        self.assertIn("complete -F _herdr_launch_complete hpt", out.stdout)
-        self.assertIn("complete -o dirnames hag", out.stdout)
+        out, _ = self.run_sh("bash", "complete -p tl hks hpt hag hproject hpt-new")
+        for line in ("complete -F _tl_complete tl", "complete -F _tlc_hks hks",
+                     "complete -F _tlc_here hpt", "complete -F _tlc_hag hag",
+                     "complete -F _tlc_named hproject", "complete -F _tlc_named hpt-new"):
+            self.assertIn(line, out.stdout)
 
-    def test_zsh_without_compinit_warns_instead_of_failing(self):
-        out = subprocess.run(["zsh", "-f", "-c", f"source {HELPERS}; echo loaded"],
-                             capture_output=True, text=True)
-        self.assertEqual(out.stdout.strip(), "loaded")
-        self.assertIn("needs compinit", out.stderr)
+    def test_zsh_completion_waits_for_compinit_silently(self):
+        script = (f"source {HELPERS}\nprint -r -- before=${{_comps[tl]:-none}}\n"
+                  "autoload -Uz compinit; compinit -u -D\n"
+                  "for f in $precmd_functions; do $f; done\n"  # what the next prompt runs
+                  "print -r -- after=$_comps[tl] hooked=${precmd_functions[(I)_tlc_register_deferred]:-0}")
+        out = subprocess.run(["zsh", "-f", "-c", script], capture_output=True, text=True)
+        self.assertEqual(out.stdout.split(), ["before=none", "after=_tl", "hooked=0"])
+        self.assertEqual(out.stderr, "")
+
+    def test_existing_aliases_and_commands_do_not_break_loading(self):
+        # oh-my-zsh plugins define e.g. `alias hai=...`; h is often `history`.
+        hh = self.root / "bin" / "hh"
+        hh.write_text("#!/bin/sh\necho real-hh\n")
+        hh.chmod(0o755)
+        try:
+            for shell in SHELLS:
+                with self.subTest(shell=shell):
+                    pre = "shopt -s expand_aliases\n" if shell == "bash" else ""
+                    script = (f"{pre}alias hai='echo alias-hai'; alias hks='echo alias-hks'; "
+                              f"alias h='echo history'\nsource {HELPERS}\n"
+                              "hai; hks w1; hh; eval h; hhelp | head -2")  # eval: zsh -c parses up front
+                    if shell == "zsh":
+                        argv = ["zsh", "-f", "-c", "autoload -Uz compinit; compinit -u -D\n" + script]
+                    else:
+                        argv = ["bash", "--norc", "--noprofile", "-c", script]
+                    log = self.root / f"{shell}.log"
+                    log.write_text("")
+                    env = {"PATH": f"{self.root / 'bin'}{os.pathsep}{os.environ['PATH']}",
+                           "HOME": str(self.root), "LOG": str(log)}
+                    out = subprocess.run(argv, cwd=self.work, env=env, capture_output=True, text=True)
+                    self.assertEqual(out.returncode, 0, out.stderr)
+                    self.assertEqual(log.read_text().splitlines(),
+                                     ["tl [launch] [herdr] [claude-projects]",
+                                      "herdr [workspace] [close] [w1]"])
+                    lines = out.stdout.splitlines()
+                    self.assertEqual(lines[:3], ["closed w1", "real-hh", "history"])
+                    self.assertIn("Start Herdr first:  herdr ", lines[4])
+                    self.assertNotIn("(or: h)", lines[4])
+        finally:
+            hh.unlink()
+
+    def test_tmux_and_zellij_regen_helpers_do_not_collide(self):
+        files = " ".join(str(REPO / "shell" / f) for f in ("tmux-layouts.zsh", "zellij-layouts.zsh"))
+        for shell in SHELLS:
+            with self.subTest(shell=shell):
+                out, log = self.run_sh(shell, f"for f in {files}; do source $f; done\n"
+                                              "TL_ALWAYS_REGEN=1; _tl_maybe_regen_tmux docker; "
+                                              "_tl_maybe_regen_zellij docker")
+                self.assertEqual(out.returncode, 0, out.stderr)
+                self.assertEqual(log, ["tl [gen] [tmux] [docker]", "tl [gen] [zellij] [docker]"])
 
     def test_bash_completion_candidates(self):
         def complete(line: str, fn: str = "_tl_complete", cwd: Path | None = None) -> list[str]:
@@ -149,11 +195,17 @@ class ShellHelpers(unittest.TestCase):
         self.assertEqual(complete("tl launch herdr p"), ["pentest", "project"])
         self.assertEqual(complete("tl launch herdr pentest --"),
                          ["--run-commands", "--cwd", "--new", "--label", "--help"])
-        # Directory names with spaces stay one candidate.
+        # Directory names with spaces stay one candidate, inserted as a filename (quoted).
         self.assertEqual(complete("tl launch herdr --cwd My", cwd=self.root), ["My Project"])
+        self.assertEqual(complete("tl launch herdr --cwd My", "compopt() { echo \"compopt $1 $2\"; }; _tl_complete",
+                                  cwd=self.root), ["compopt -o filenames", "My Project"])
         self.assertEqual(complete("tl launch --label x herdr "), WORKFLOWS)
-        self.assertEqual(complete("hk w", "_hk_complete"), ["w1", "w2"])
-        self.assertEqual(complete("hpt ", "_herdr_launch_complete"), [".", "--run-commands", "--label"])
+        self.assertEqual(complete("hks w", "_tlc_hks"), ["w1", "w2"])
+        self.assertEqual(complete("hpt ", "_tlc_here"), [".", "--run-commands", "--label"])
+        self.assertEqual(complete("hag My", "_tlc_hag", cwd=self.root), ["My Project"])
+        self.assertEqual(complete("hag . --", "_tlc_hag"), ["--run-commands", "--label"])
+        self.assertEqual(complete("hpt-new ", "_tlc_named"), [])
+        self.assertEqual(complete("hpt-new acme --", "_tlc_named"), ["--run-commands", "--label"])
 
 
 if __name__ == "__main__":

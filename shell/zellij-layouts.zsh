@@ -14,11 +14,15 @@
 #   export TL_ALWAYS_REGEN=1   # regenerate on every launch
 #   unset TL_ALWAYS_REGEN      # use installed layouts (default)
 
+# A same-named alias would make zsh refuse the function definitions below.
+unalias zp zo zdk zpt zma zos zctf zh \
+  zp-new zdk-new zpt-new zma-new zos-new zctf-new 2>/dev/null || true
+
 # ---------------------------------------------------------------------------
 # Internal helper: optionally regenerate a workflow's KDL before launching.
-# Usage: _tl_maybe_regen <workflow>
+# Usage: _tl_maybe_regen_zellij <workflow>
 # ---------------------------------------------------------------------------
-_tl_maybe_regen() {
+_tl_maybe_regen_zellij() {
   local workflow="$1"
   [[ -z "$TL_ALWAYS_REGEN" ]] && return 0
 
@@ -42,37 +46,37 @@ alias z='zellij'
 # ---------------------------------------------------------------------------
 
 zp() {
-  _tl_maybe_regen claude-projects
+  _tl_maybe_regen_zellij claude-projects
   zellij -n claude-projects -s claude
 }
 
 zo() {
-  _tl_maybe_regen project
+  _tl_maybe_regen_zellij project
   zellij -n project options --default-cwd "$@"
 }
 
 zdk() {
-  _tl_maybe_regen docker
+  _tl_maybe_regen_zellij docker
   zellij -n docker -s docker options --default-cwd ~/docker
 }
 
 zpt() {
-  _tl_maybe_regen pentest
+  _tl_maybe_regen_zellij pentest
   zellij -n pentest -s pentest options --default-cwd ~/ops/pentest
 }
 
 zma() {
-  _tl_maybe_regen malware-analysis
+  _tl_maybe_regen_zellij malware-analysis
   zellij -n malware-analysis -s malware options --default-cwd ~/ops/malware
 }
 
 zos() {
-  _tl_maybe_regen osint
+  _tl_maybe_regen_zellij osint
   zellij -n osint -s osint options --default-cwd ~/ops/osint
 }
 
 zctf() {
-  _tl_maybe_regen ctf
+  _tl_maybe_regen_zellij ctf
   zellij -n ctf -s ctf options --default-cwd ~/ops/ctf
 }
 
@@ -98,7 +102,7 @@ _zellij_layout_new() {
 
   [[ -z "$name" ]] && { echo "Usage: $usage"; return 1; }
 
-  _tl_maybe_regen "$layout"
+  _tl_maybe_regen_zellij "$layout"
   mkdir -p "$base_dir/$name"
   zellij -n "$layout" -s "${session_prefix}${name}" options --default-cwd "$base_dir/$name"
 }

@@ -135,7 +135,7 @@ cd ~/projects/my-app
 hag                   # ai-agents workbench here, workspace named "my-app"
 hpt-new acme          # pentest in ~/ops/pentest/acme, workspace "pt-acme"
 hma .                 # malware-analysis in the current directory
-hls                   # list workspaces      hk <id>   close one      hh   all helpers
+hls                   # list workspaces      hks <id>  close one      hh   all helpers
 ```
 
 Same commands without the helpers: `tl launch herdr <workflow> [--cwd DIR | --new NAME] [--label TEXT]`,
@@ -237,7 +237,7 @@ dropped as noise.)
 Source the alias files for fast launchers (`tdk`, `zpt`, `hpt`, `zo .`, `tdk-new <name>`, …):
 
 ```bash
-# in ~/.zshrc (after oh-my-zsh / compinit), or ~/.bashrc
+# in ~/.zshrc or ~/.bashrc (any order: zsh completion waits for compinit)
 source /path/to/terminal-layouts/shell/tmux-layouts.zsh
 source /path/to/terminal-layouts/shell/zellij-layouts.zsh
 source /path/to/terminal-layouts/shell/herdr-layouts.zsh
@@ -251,11 +251,11 @@ source /path/to/terminal-layouts/shell/herdr-layouts.zsh
 | docker · pentest · malware · osint · ctf | `tdk` `tpt` `tma` `tos` `tctf` | `zdk` `zpt` `zma` `zos` `zctf` | `hdk` `hpt` `hma` `hos` `hctf` |
 | …in the current directory | `tpt .` | — | `hpt .` |
 | new named workspace | `tpt-new <name>` | `zpt-new <name>` | `hpt-new <name>` |
-| list · attach/close | `tls` · `ta` `tks` | `zls` · `za` `zks` | `hls` · `hk <id>` |
-| help | `th` | `zh` | `hh` |
+| list · attach/close | `tls` · `ta` `tks` | `zls` · `za` `zks` | `hls` · `hks <id>` |
+| help | `th` | `zh` | `hh` / `hhelp` |
 
-- Each file also turns on **tab completion** for `tl` (subcommands, targets, workflow names, options) and
-  its helpers (`hk <TAB>` lists live Herdr workspaces). zsh and bash.
+- Each file also turns on **tab completion** for `tl` (subcommands, targets, workflow names, options);
+  the Herdr helpers complete too (`hks <TAB>` lists live Herdr workspaces). zsh and bash.
 - tmux/Zellij aliases load the installed layout by default; set `TL_ALWAYS_REGEN=1` to regenerate a
   workflow from the manifest on every launch. Herdr helpers always build from the manifest.
 - `*-new <name>` variants spin up a fresh, named session in `<workflow dir>/<name>`.

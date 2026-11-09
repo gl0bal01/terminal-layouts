@@ -226,7 +226,7 @@ class LiveHerdr(unittest.TestCase):
                 cwds = {p["cwd"] for p in herdr("pane", "list", "--workspace", live["demo"])["panes"]}
                 self.assertEqual(cwds, {str(project)})
                 closed = subprocess.run(
-                    argv[:-1] + [argv[-1].replace(script, f"source {helpers}\nhk {' '.join(live.values())}")],
+                    argv[:-1] + [argv[-1].replace(script, f"source {helpers}\nhks {' '.join(live.values())}")],
                     capture_output=True, text=True)
                 self.assertEqual(closed.returncode, 0, closed.stderr)
                 self.assertEqual(herdr("workspace", "list")["workspaces"], [])

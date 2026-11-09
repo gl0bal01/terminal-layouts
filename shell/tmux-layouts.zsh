@@ -15,7 +15,8 @@
 alias t='tmux'
 
 # Clear old launcher aliases when re-sourcing after an update.
-unalias tai tproject tdk tpt tma tos tctf 2>/dev/null || true
+unalias tai tproject tdk tpt tma tos tctf th \
+  tai-new tdk-new tpt-new tma-new tos-new tctf-new 2>/dev/null || true
 
 # Resolve this file's directory in both zsh and bash. The zsh-only param
 # expansion is eval-guarded so bash's parser never chokes on it; the zsh
@@ -56,7 +57,7 @@ _tmux_layouts_tmuxp_dir() {
 # If TL_ALWAYS_REGEN is set and non-empty, regenerate the installed layout
 # file for <workflow> via `tl gen tmux <workflow>` before loading.
 # Falls back to the existing installed file if `tl` is not on PATH.
-_tl_maybe_regen() {
+_tl_maybe_regen_tmux() {
   local workflow="$1"
   if [[ -n "${TL_ALWAYS_REGEN:-}" ]]; then
     if command -v tl >/dev/null 2>&1; then
@@ -155,7 +156,7 @@ _tmux_layout_temp_with_cwd() {
 
 _tmux_layout_load_with_cwd() {
   local layout="$1" session="$2" cwd="$3" template tmp rc
-  _tl_maybe_regen "$layout"
+  _tl_maybe_regen_tmux "$layout"
   template="$(_tmux_layout_file "$layout")" || return 1
   tmp="$(_tmux_layout_temp_with_cwd "$template" "$cwd")" || return 1
   _tmuxp_load -s "$session" "$tmp"
@@ -166,7 +167,7 @@ _tmux_layout_load_with_cwd() {
 
 _tmux_layout_load() {
   local layout="$1" target
-  _tl_maybe_regen "$layout"
+  _tl_maybe_regen_tmux "$layout"
   if target="$(_tmux_layout_file "$layout" 2>/dev/null)"; then
     _tmuxp_load "$target"
   else
