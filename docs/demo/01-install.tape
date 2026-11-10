@@ -23,7 +23,7 @@ Sleep 500ms
 Show
 
 # 1. Install (the download wait is cut)
-Type "pipx install git+https://github.com/gl0bal01/terminal-layouts"
+Type "pipx install terminal-layouts"
 Sleep 400ms
 Enter
 Sleep 2s
