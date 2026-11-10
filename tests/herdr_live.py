@@ -72,7 +72,7 @@ class LiveHerdr(unittest.TestCase):
         # Expose exactly the requested binary as `herdr`, whatever its file name.
         (cls.root / "bin").mkdir()
         (cls.root / "bin" / "herdr").symlink_to(Path(binary).resolve())
-        # The shell helpers call `tl`: point it at this checkout.
+        # The shell commands call `tl`: point it at this checkout.
         tl = cls.root / "bin" / "tl"
         tl.write_text(f'#!/bin/sh\nPYTHONPATH="{REPO}" exec "{sys.executable}" -m terminal_layouts.cli "$@"\n')
         tl.chmod(0o755)
@@ -206,12 +206,12 @@ class LiveHerdr(unittest.TestCase):
         self.assert_workspace_matches(plan, ws, pane_ids)
 
     def test_shell_commands_against_real_server(self):
-        helpers = REPO / "shell" / "herdr-layouts.zsh"
         project = Path(os.environ["HOME"]) / "projects" / "demo"
         project.mkdir(parents=True, exist_ok=True)
         for shell in ("bash", "zsh"):
             with self.subTest(shell=shell):
-                script = f"source {helpers}\nherdr-ai-agents && herdr-pentest --new acme-{shell} && herdr-ls"
+                init = f'eval "$(command tl init {shell} --backends herdr)"'
+                script = f"{init}\nherdr-ai-agents && herdr-pentest --new acme-{shell} && herdr-ls"
                 argv = (["zsh", "-f", "-c", "autoload -Uz compinit; compinit -u -D\n" + script]
                         if shell == "zsh" else ["bash", "--norc", "--noprofile", "-c", script])
                 out = subprocess.run(argv, cwd=project, capture_output=True, text=True)
@@ -226,7 +226,7 @@ class LiveHerdr(unittest.TestCase):
                 cwds = {p["cwd"] for p in herdr("pane", "list", "--workspace", live["ai-demo"])["panes"]}
                 self.assertEqual(cwds, {str(project)})
                 closed = subprocess.run(
-                    argv[:-1] + [argv[-1].replace(script, f"source {helpers}\nherdr-close {' '.join(live.values())}")],
+                    argv[:-1] + [argv[-1].replace(script, f"{init}\nherdr-close {' '.join(live.values())}")],
                     capture_output=True, text=True)
                 self.assertEqual(closed.returncode, 0, closed.stderr)
                 self.assertEqual(herdr("workspace", "list")["workspaces"], [])

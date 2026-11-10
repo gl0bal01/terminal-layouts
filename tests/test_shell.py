@@ -221,31 +221,6 @@ class ShellInit(unittest.TestCase):
                 self.assertEqual(out.stderr, "")  # second eval: our own names, no warning
                 self.assertEqual(log, ["tl [launch] [tmux] [pentest]"])
 
-    def test_old_shell_files_still_work(self):
-        sources = "; ".join(f"source {REPO}/shell/{b}-layouts.zsh" for b in BACKENDS)
-        for shell in SHELLS:
-            with self.subTest(shell=shell):
-                out, log = self.run_sh(shell, "tmux-pentest; zellij-pentest; herdr-pentest; "
-                                              "layouts | grep -cE '^(tmux|zellij|herdr)'", init=sources)
-                self.assertEqual(out.returncode, 0, out.stderr)
-                self.assertEqual(out.stderr, "")
-                self.assertEqual(out.stdout.split(), ["3"])  # help covers every sourced backend
-                self.assertEqual(log, ["tl [launch] [tmux] [pentest]", "tl [launch] [zellij] [pentest]",
-                                       "tl [launch] [herdr] [pentest]"])
-            with self.subTest(shell=shell, tl="missing"):
-                out, _ = self.run_sh(shell, "true", init=f"source {REPO}/shell/tmux-layouts.zsh",
-                                     env={"PATH": "/usr/bin:/bin"})
-                self.assertIn("tl not found", out.stderr)
-            with self.subTest(shell=shell, tl="broken"):
-                broken = self.root / "broken"
-                broken.mkdir(exist_ok=True)
-                (broken / "tl").write_text("#!/bin/sh\necho 'error: manifest is broken' >&2; exit 1\n")
-                (broken / "tl").chmod(0o755)
-                out, _ = self.run_sh(shell, "true", init=f"source {REPO}/shell/tmux-layouts.zsh",
-                                     env={"PATH": f"{broken}:/usr/bin:/bin"})
-                self.assertIn("error: manifest is broken", out.stderr)  # the real cause is shown
-                self.assertIn("`tl init` failed", out.stderr)
-
     def test_zsh_completion_is_registered_for_owned_names_only(self):
         script = ("print -r -- ${_comps[tl]} ${_comps[tmux-pentest]} ${_comps[tmux-attach]} "
                   "${_comps[zellij-kill]} ${_comps[herdr-close]} ${_comps[herdr-ai-agents]} z=${_comps[z]:-none}")

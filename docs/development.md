@@ -93,7 +93,6 @@ terminal_layouts/             the Python package (the tl command)
   shell/completion.{zsh,bash} tab completion, inlined by tl init
   manual.py                   tl help, generated from the manifest
   manifest/                   schema.json, defaults.yaml, workflows/*.yaml (bundled in the wheel)
-shell/                        sourceable wrappers around tl init, one per backend
 tests/                        see below
 docs/                         this documentation; demo/ holds the GIFs and their tapes
 scripts/ci-local.sh           every CI job, locally
