@@ -238,6 +238,11 @@ EXIT STATUS
       directory, unknown help topic or init backend
   tl launch tmux|zellij exits with the status of tmuxp / zellij (128+N when
   it was killed by signal N, as in a shell).
+
+SEE ALSO
+  Beginner tutorials for tmux, Zellij and Herdr (keys, every command,
+  troubleshooting): https://github.com/gl0bal01/terminal-layouts/tree/main/docs
+  man tmux, zellij --help, herdr --help
 """
 
 

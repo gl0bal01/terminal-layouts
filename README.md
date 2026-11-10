@@ -79,6 +79,10 @@ herdr-ai-agents                      # Herdr:  ai-agents here, named ai-<this di
 tmuxp load -y docker                 # plain tmuxp / zellij --layout pentest still work
 ```
 
+**New to tmux, Zellij or Herdr?** One beginner tutorial per terminal: install, the keys you need,
+every command with its `tl` equivalent, recipes and troubleshooting —
+[tmux](docs/tmux.md) · [Zellij](docs/zellij.md) · [Herdr](docs/herdr.md).
+
 ### Make targets
 
 ```bash
@@ -306,7 +310,7 @@ tmux-docker -d --label web      # tmux: -d = detached · Herdr: --run-commands
   so two workflows opened from one directory never share a session.
 - `command tl` keeps working when a plugin aliases `tl` (oh-my-zsh's tmux plugin does).
 - **Your names win:** a name that already exists in your shell (zoxide's `z`, an oh-my-zsh alias, a
-  command) is kept and listed once at startup. `tl init zsh --force` replaces them;
+  command) is kept and listed once at startup. `eval "$(command tl init zsh --force)"` replaces them;
   `TL_INIT_QUIET=1` hides the notice.
 - Layouts are generated fresh from the manifest on every launch, so they are never stale.
 - Startup cost: about 0.1 s for `tl init`. To skip it, cache the output:
@@ -422,7 +426,7 @@ terminal-layouts/
 │       └── workflows/*.yaml      # the 8 workflows
 ├── shell/                        # compatibility wrappers around `tl init`
 ├── tests/                        # parity, idempotence, unit, bash/zsh, live Herdr/tmux/Zellij
-├── docs/                         # ai-agents.md (Herdr backend)
+├── docs/                         # tmux.md zellij.md herdr.md (tutorials), ai-agents.md, demo/ (GIFs)
 ├── scripts/ci-local.sh           # every CI job, locally (`make ci`)
 ├── .githooks/pre-push            # `make hooks`
 ├── pyproject.toml  Makefile

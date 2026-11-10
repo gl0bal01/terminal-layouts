@@ -111,7 +111,7 @@ EPILOGUE = r'''if [ -n "$_TL_POSIX" ]; then
   echo "terminal-layouts: bash runs in POSIX mode, which forbids names like tmux-pentest; nothing defined" >&2
 fi
 if [ -n "$_TL_SKIPPED" ] && [ -z "${TL_INIT_QUIET:-}" ]; then
-  printf 'terminal-layouts: kept your existing%s (tl init --force replaces them; TL_INIT_QUIET=1 hides this)\n' \
+  printf 'terminal-layouts: kept your existing%s (add --force to your tl init line to replace them; TL_INIT_QUIET=1 hides this)\n' \
     "$_TL_SKIPPED" >&2
 fi
 '''
