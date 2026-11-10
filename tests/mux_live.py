@@ -33,6 +33,20 @@ def wait_for(predicate, timeout: float = 15.0) -> bool:
     return predicate()
 
 
+def wait_until(read, accept, timeout: float = 15.0):
+    """Poll read() until accept(value) and return the last value read.
+
+    Assert on that value: under load a Zellij action now and then prints nothing, so reading
+    again after the wait can come back empty although the wait had succeeded.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        value = read()
+        if accept(value) or time.monotonic() >= deadline:
+            return value
+        time.sleep(0.2)
+
+
 def expected_tabs(workflow_id: str, backend: str) -> list[dict]:
     skip = "zellij_only" if backend == "tmux" else "tmux_only"
     tabs = [t for t in common.load_workflow(workflow_id)["tabs"] if not t.get(skip)]
@@ -164,8 +178,20 @@ class LiveMux(unittest.TestCase):
         return subprocess.run(["zellij", "list-sessions", "--short", "--no-formatting"],
                               capture_output=True, text=True).stdout.split()
 
+    def zellij_screens(self) -> str:
+        """What the terminals running Zellij show right now."""
+        tmux = ["tmux", "-L", "zellij-pty"]
+        panes = subprocess.run(tmux + ["list-panes", "-a", "-F", "#{pane_id}"], capture_output=True, text=True)
+        return "\n".join(subprocess.run(tmux + ["capture-pane", "-p", "-t", pane], capture_output=True,
+                                        text=True).stdout for pane in panes.stdout.split())
+
     def assert_zellij_session(self, session: str, workflow_id: str, cwd: Path) -> None:
-        self.assertTrue(wait_for(lambda: session in self.zellij_sessions()), self.zellij_sessions())
+        # Watch the terminal until Zellij has drawn its tab bar before talking to the server:
+        # every zellij command (list-sessions too) connects as a client, and Zellij 0.45.1
+        # panics (zellij-server/src/lib.rs:1462) when one disconnects while the session starts.
+        screen = wait_until(self.zellij_screens, lambda got: f"Zellij ({session})" in got, timeout=45)
+        self.assertIn(f"Zellij ({session})", screen)
+        self.assertIn(session, wait_until(self.zellij_sessions, lambda got: session in got))
         want = [t["label"] for t in expected_tabs(workflow_id, "zellij")]
 
         def names() -> list[str]:
@@ -173,15 +199,13 @@ class LiveMux(unittest.TestCase):
                                   capture_output=True, text=True).stdout.splitlines()
 
         # The session is listed before its layout has finished creating every tab.
-        wait_for(lambda: names() == want)
-        self.assertEqual(names(), want)
+        self.assertEqual(wait_until(names, lambda got: got == want), want)
         def layout() -> str:
             return subprocess.run(["zellij", "-s", session, "action", "dump-layout"],
                                   capture_output=True, text=True).stdout
 
         # Tabs exist before their panes: wait until the panes (and their cwd) are there.
-        wait_for(lambda: f'cwd "{cwd}"' in layout())
-        self.assertIn(f'cwd "{cwd}"', layout())
+        self.assertIn(f'cwd "{cwd}"', wait_until(layout, lambda got: f'cwd "{cwd}"' in got))
 
     def test_zellij_cli_and_shortcut(self):
         self.zellij_in_pty("tl launch zellij pentest --new acme")
