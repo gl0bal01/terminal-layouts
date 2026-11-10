@@ -41,15 +41,14 @@ change them or add your own.
 ## Install
 
 ```bash
-pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"
+pipx install terminal-layouts
 echo 'eval "$(command tl init zsh)"' >> ~/.zshrc    # bash: tl init bash, in ~/.bashrc
 exec zsh
 ```
 
 - **Needs** Python 3.10+ and at least one of: tmux 3.4+ with tmuxp, Zellij, Herdr 0.8.2+.
 - **Runs on** Linux and macOS. On Windows, use WSL2.
-- **Install from the repository**, as shown. The PyPI release (0.1.0) lacks `tl launch`, the shell
-  commands and Herdr.
+- **Upgrade** with `pipx upgrade terminal-layouts`.
 
 ### Install with an AI agent
 
@@ -59,7 +58,7 @@ Paste this into Claude Code, Codex or any agent that has a shell:
 Install Terminal-layouts from https://github.com/gl0bal01/terminal-layouts.
 1. Check which of tmux (3.4+), zellij and herdr are installed. If none, ask me which one to install.
 2. For tmux, make sure tmuxp is installed (pipx install tmuxp).
-3. Run: pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"
+3. Run: pipx install terminal-layouts (already installed: pipx upgrade terminal-layouts)
 4. Add eval "$(command tl init zsh)" to ~/.zshrc (bash: tl init bash, in ~/.bashrc),
    unless the line is already there. Show me the line before you write it.
 5. Verify in a new shell: tl --version, tl validate, layouts.
