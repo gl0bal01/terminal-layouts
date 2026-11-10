@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         python-version: ["3.10", "3.12"]
@@ -22,7 +22,7 @@ jobs:
 
   e2e:
     # Real Herdr, tmux and Zellij (pinned, sha256-checked downloads) — no mocks.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
