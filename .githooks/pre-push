@@ -1,0 +1,8 @@
+#!/bin/sh
+# Mirror CI on exactly the commits being pushed. Enable once per clone: `make hooks`.
+# stdin: <local ref> <local sha> <remote ref> <remote sha> per pushed ref.
+root="$(git rev-parse --show-toplevel)"
+while read -r _ sha _ _; do
+    case "$sha" in *[!0]*) ;; *) continue ;; esac  # all zeros = branch deletion
+    bash "$root/scripts/ci-local.sh" "$sha" || exit 1
+done

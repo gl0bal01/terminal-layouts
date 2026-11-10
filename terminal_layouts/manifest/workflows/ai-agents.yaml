@@ -1,0 +1,64 @@
+# Multi-agent workspace. Commands are opt-in: launch agents manually to control API spend.
+id: ai-agents
+name: AI Agent Workbench
+description: Parallel coding agents with review and git monitoring
+prefix: ai-
+cwd: $PWD
+tabs:
+  - id: cockpit
+    name: cockpit
+    focus: true
+    panes:
+      - direction: row
+        children:
+          - id: coordinator
+            name: coordinator
+            description: Coordinator shell (launch herdr separately if installed)
+            command: ""
+            focus: true
+          - direction: column
+            children:
+              - id: git
+                name: git
+                command: "watch -n 5 -c git status -sb"
+                close_on_exit: false
+              - id: notes
+                name: notes
+                command: ""
+  - id: implement
+    name: implement
+    panes:
+      - direction: row
+        children:
+          - id: opencode
+            name: opencode
+            description: Run opencode manually
+            command: ""
+          - id: tests
+            name: tests
+            command: ""
+  - id: research
+    name: research
+    panes:
+      - direction: row
+        children:
+          - id: pi
+            name: pi
+            description: Run pi manually
+            command: ""
+          - id: evidence
+            name: evidence
+            command: ""
+  - id: review
+    name: review
+    panes:
+      - direction: row
+        children:
+          - id: codex
+            name: codex
+            description: Run codex or claude manually
+            command: ""
+          - id: diff
+            name: diff
+            command: "watch -n 5 -c git diff --stat"
+            close_on_exit: false
