@@ -2,38 +2,10 @@
 
 The canonical YAML manifest can now produce **three** backends. Herdr is different from tmuxp and Zellij: it exposes a running server with workspace/tab/pane APIs, rather than accepting a static layout file. The generated JSON is a deterministic, inspectable **execution plan**, not a Herdr config file.
 
-## Quick start
+## Using it
 
-Prerequisites: Python 3.10+ and Herdr 0.8.2 or newer (tested against 0.8.2 and 0.9.5). Herdr support is newer than the PyPI release (0.1.0), so install `tl` from the repository:
-
-~~~sh
-pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"
-echo 'eval "$(command tl init zsh)"' >> ~/.zshrc   # commands + tab completion (bash: tl init bash)
-~~~
-
-Then, with Herdr running (`herdr`, or `herdr server` headless):
-
-~~~sh
-cd ~/projects/my-app
-herdr-ai-agents                  # = tl launch herdr ai-agents           (here, workspace "ai-my-app")
-herdr-pentest --new acme         # = tl launch herdr pentest --new acme  (~/ops/pentest/acme, "pt-acme")
-herdr-malware-analysis .         # = tl launch herdr malware-analysis .
-herdr-ls                         # list workspaces;  herdr-close <id> closes one;  layouts lists everything
-tl gen herdr ai-agents           # inspect the plan only; touches nothing
-~~~
-
-`tl launch herdr <workflow>` options:
-
-| Option | Effect |
-|---|---|
-| `DIR` / `.` (or `--cwd DIR`) | Run the workflow in `DIR` instead of its manifest directory (tabs with their own `cwd` keep it). The workspace is named `<prefix><DIR name>` (e.g. `pt-acme`) unless `--label` is given; workflows whose manifest directory is `$PWD` (ai-agents, project) are named after the current directory the same way (`ai-my-app`). |
-| `--new NAME` | Create `<workflow dir>/NAME` and launch there, named `<prefix>NAME` (`pt-`, `ma-`, …, from the manifest). |
-| `--label TEXT` | Workspace name shown in Herdr. |
-| `--run-commands` | Also run the manifest pane commands (see below). |
-
-The same `tl launch` options work for `tmux` and `zellij` (plus `-d` for a detached tmux session). Tab completion (zsh and bash) covers `tl`, every `<backend>-<workflow>` command, and `herdr-close <TAB>` (live workspace ids with their labels); in zsh it registers as soon as `compinit` has run, whatever the order in `~/.zshrc`. See the README's *Shell commands* section for the full list.
-
-Run inside a Herdr pane, `tl launch` targets that session; otherwise it targets the default session (or `HERDR_SOCKET_PATH`).
+Install, every command and option, the keys and troubleshooting are in the [Herdr tutorial](herdr.md);
+this page covers what the backend guarantees, how it works and its limits.
 
 Agent panes start as ordinary shells. Enter **opencode**, **pi**, **claude** or **codex** manually in the corresponding pane. No agent process, provider API call, or shell watcher is started automatically by this backend.
 

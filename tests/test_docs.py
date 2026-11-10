@@ -54,7 +54,7 @@ class Tutorials(unittest.TestCase):
         readme = (REPO / "README.md").read_text()
         for backend in shell_init.BACKENDS:
             self.assertIn(f"](docs/{backend}.md)", readme)
-        for page in [DOCS / f"{b}.md" for b in shell_init.BACKENDS]:
+        for page in [*(DOCS / f"{b}.md" for b in shell_init.BACKENDS), DOCS / "ai-agents.md", REPO / "README.md"]:
             text = page.read_text()
             for target in re.findall(r"\]\(([^)\s]+)\)", text):
                 if re.match(r"https?://", target):

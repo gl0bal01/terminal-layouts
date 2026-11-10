@@ -2,12 +2,10 @@
 
 # terminal-layouts
 
-**One declarative manifest → reproducible tmux *and* Zellij workspaces. Zero drift, by construction.**
+**One declarative manifest → reproducible tmux, Zellij *and* Herdr workspaces. Zero drift, by construction.**
 
-Stop hand-maintaining two sets of terminal layouts that silently fall out of sync.
-Describe each workspace **once**; generate both `tmuxp` YAML and Zellij KDL from the same source of truth.
-
-`make install` and every workflow below lands in your config — ready to launch.
+Stop hand-maintaining terminal layouts that silently fall out of sync.
+Describe each workspace **once**; tmux, Zellij and Herdr all open it from the same source of truth.
 
 <br>
 
@@ -40,7 +38,7 @@ structural-equivalence test fails CI the moment the two ever describe different 
 - **Drift is impossible** — JSON Schema + parity + idempotence run in CI on every change.
 - **Switch multiplexers freely** — the same workspace exists in tmux *and* Zellij. Try Zellij without rebuilding your muscle memory or your layouts.
 - **Batteries included** — 8 workflows (dev, DevOps, security, research) ship ready to use.
-- **Reproducible everywhere** — `make install` on any machine reproduces your exact workspaces; nothing to copy by hand.
+- **Reproducible everywhere** — `pipx install` and one line in `~/.zshrc` reproduce your exact workspaces on any machine.
 - **Zero lock-in** — outputs are plain `tmuxp`/Zellij files; the manifest is portable YAML.
 
 | | Two hand-written repos | terminal-layouts |
@@ -49,7 +47,7 @@ structural-equivalence test fails CI the moment the two ever describe different 
 | Drift between tmux/Zellij | inevitable, manual to catch | **impossible (parity test)** |
 | Add / rename a pane | edit two files, two syntaxes | **edit one field** |
 | Correctness | eyeballed | **schema + parity + idempotence in CI** |
-| Distribution | `git clone` + hand-copy | `make install` (or `uvx`) |
+| Distribution | `git clone` + hand-copy | `pipx install` + one shell line |
 | Output | committed artifacts that rot | regenerated on demand |
 
 ---
@@ -57,67 +55,24 @@ structural-equivalence test fails CI the moment the two ever describe different 
 ## Quick start
 
 ```bash
-git clone https://github.com/gl0bal01/terminal-layouts
-cd terminal-layouts
+pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"
+echo 'eval "$(command tl init zsh)"' >> ~/.zshrc    # bash: tl init bash, in ~/.bashrc
+exec zsh
 
-make doctor     # check tmux / tmuxp / zellij / herdr are present
-make install    # write all 8 workflows to ~/.config (tmuxp + zellij)
-echo 'eval "$(command tl init zsh)"' >> ~/.zshrc     # commands + tab completion (bash: tl init bash)
+layouts                      # every command, with directories and descriptions
+tmux-pentest --new acme      # tmux:   ~/ops/pentest/acme, session pt-acme
+zellij-docker                # Zellij: ~/docker
+herdr-ai-agents              # Herdr:  this directory, workspace ai-<directory>
+tl help                      # the manual
 ```
 
-`make install` writes every workflow into your multiplexer config dirs:
-
-- `~/.config/tmuxp/<workflow>.yaml`
-- `~/.config/zellij/layouts/<workflow>.kdl`
-
-Then open any workspace — `<backend>-<workflow>`, Tab completes, `layouts` lists everything:
-
-```bash
-tmux-docker                          # tmux:   docker workspace   (= tl launch tmux docker)
-zellij-pentest --new acme            # Zellij: ~/ops/pentest/acme, session pt-acme
-herdr-ai-agents                      # Herdr:  ai-agents here, named ai-<this directory>
-tmuxp load -y docker                 # plain tmuxp / zellij --layout pentest still work
-```
+Each backend needs its own tool: tmux 3.4+ with tmuxp, Zellij, or Herdr 0.8.2+. `tl install` also
+writes static layouts to `~/.config` for plain `tmuxp load` / `zellij --layout`. The PyPI release
+(0.1.0) predates `tl launch`, the shell commands and Herdr; install from the repository as above.
 
 **New to tmux, Zellij or Herdr?** One beginner tutorial per terminal: install, the keys you need,
 every command with its `tl` equivalent, recipes and troubleshooting —
 [tmux](docs/tmux.md) · [Zellij](docs/zellij.md) · [Herdr](docs/herdr.md).
-
-### Make targets
-
-```bash
-make all       # generate tmux + Zellij layouts and Herdr plans into ./dist (preview)
-make install   # write layouts to ~/.config (tmuxp + zellij)
-make doctor    # check required + recommended tools
-make setup     # install + print the shell line to add
-make test      # schema + parity + idempotence + unit + shell (bash/zsh) tests
-make herdr     # generate Herdr JSON plans into ./dist/herdr
-make e2e       # live tests: real Herdr, tmux and Zellij (throwaway servers)
-make ci        # run every CI job locally (on HEAD)
-make hooks     # run `make ci` on each pushed commit (pre-push hook)
-make list      # list available workflows
-make clean     # remove ./dist
-```
-
-### Install without cloning
-
-The package is on [PyPI](https://pypi.org/project/terminal-layouts/).
-
-**uvx** — run on demand, no install ([`uv`](https://docs.astral.sh/uv/) bootstraps Python if missing):
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh    # one-time
-uvx terminal-layouts install                       # write all layouts to ~/.config
-uvx terminal-layouts gen tmux docker               # or emit one to stdout
-```
-
-**pipx** — install the `tl` command persistently:
-
-```bash
-pipx install terminal-layouts
-tl install                                         # write all layouts to ~/.config
-tl gen zellij pentest                              # or emit one to stdout
-```
 
 ---
 
@@ -160,35 +115,11 @@ comment at the top of each tape).
 
 ## Herdr backend (experimental)
 
-[Herdr](https://herdr.dev/) is a live terminal workspace manager for AI coding agents. There is no
-layout file to install: `tl` creates the workspace directly in the running Herdr.
-
-**One-time setup**
-
-```bash
-pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"   # Herdr support is newer than PyPI 0.1.0
-echo 'eval "$(command tl init zsh)"' >> ~/.zshrc                                  # commands + tab completion
-```
-
-**Every day**
-
-```bash
-herdr                 # start Herdr (or work from a pane inside it)
-cd ~/projects/my-app
-herdr-ai-agents                # ai-agents workbench here, workspace named "ai-my-app"
-herdr-pentest --new acme       # pentest in ~/ops/pentest/acme, workspace "pt-acme"
-herdr-malware-analysis .       # malware-analysis in the current directory
-herdr-ls                       # list workspaces   ·  herdr-close <id>   ·  layouts  (everything)
-```
-
-Same thing without the shell commands: `tl launch herdr <workflow> [DIR|.] [--new NAME] [--label TEXT]`,
-and `tl gen herdr <workflow>` prints the plan without touching Herdr. Agents are never started for you:
-type `opencode`, `pi`, `claude` or `codex` in a pane. Manifest pane commands run only with `--run-commands`.
-
-Tabs, panes, sizes, focus and directories match the Zellij layout; a failed launch closes the workspace
-it created. Requires Herdr 0.8.2 or newer (tested on 0.8.2 and 0.9.5); `make e2e` checks every
-workflow against a real Herdr server, in CI too. See [AI-agent workspaces](docs/ai-agents.md) for
-details and limits.
+[Herdr](https://herdr.dev/) has no layout file: `tl` builds the workspace in the running Herdr server.
+Agents are never started for you, and manifest pane commands run only with `--run-commands`. Tabs,
+panes, sizes, focus and directories match the Zellij layout; `make e2e` checks every workflow against
+a real Herdr (0.8.2+, tested on 0.8.2 and 0.9.5), in CI too. Start with the
+[Herdr tutorial](docs/herdr.md); internals and limits: [AI-agent workspaces](docs/ai-agents.md).
 
 ---
 
@@ -275,50 +206,30 @@ dropped as noise.)
 
 ---
 
-## Shell commands (recommended)
+## Shell commands
 
-One line in `~/.zshrc` (or `~/.bashrc` with `bash`) — no clone needed, any position in the file:
+`eval "$(command tl init zsh)"` (bash: `tl init bash`) defines one command per workflow and backend,
+`<backend>-<workflow>`, the same as `tl launch <backend> <workflow>`, plus session commands and tab
+completion. A new workflow gets its commands automatically.
 
-```bash
-eval "$(command tl init zsh)"                        # every backend
-eval "$(command tl init zsh --backends tmux,herdr)"  # only the ones you use
-```
-
-Nothing to memorise: every command is **`<backend>-<workflow>`**, generated from the manifest for
-every workflow (a new workflow gets its commands automatically). Type `tmux-`, `zellij-` or `herdr-`
-and press Tab; run **`layouts`** for the full list with directories and descriptions.
-
-```bash
-tmux-pentest                    # pentest in ~/ops/pentest        (= tl launch tmux pentest)
-tmux-pentest .                  # ... in the current directory, session pt-<dir>
-tmux-pentest --new acme         # ... in ~/ops/pentest/acme (created), session pt-acme
-zellij-malware-analysis ~/case  # any directory
-herdr-ai-agents                 # agent workbench here, workspace ai-<dir>
-tmux-docker -d --label web      # tmux: -d = detached · Herdr: --run-commands
-```
-
-| sessions | tmux | Zellij | Herdr |
+| | tmux | Zellij | Herdr |
 |---|---|---|---|
+| open | `tmux-<workflow>` | `zellij-<workflow>` | `herdr-<workflow>` |
+| where / name | `.` · `DIR` · `--new NAME` · `--label NAME` | same | same |
+| extra option | `-d` (detached) | — | `--run-commands` |
 | list | `tmux-ls` | `zellij-ls` | `herdr-ls` |
 | attach | `tmux-attach <s>` | `zellij-attach <s>` | — |
 | kill / close | `tmux-kill <s>` · `tmux-kill-all` | `zellij-kill <s>` · `zellij-kill-all` · `zellij-delete[-all]` | `herdr-close <id>` |
-| the multiplexer itself | `t` | `z` | `h` |
+| the tool itself | `t` | `z` | `h` |
 
-- **Tab completion** (zsh and bash) for `tl` and every command: workflow names, options, directories,
-  live tmux/Zellij sessions and Herdr workspace ids.
-- Names come from `<prefix><directory>` (`pt-acme`, `ai-my-app`): prefixes are unique per workflow,
-  so two workflows opened from one directory never share a session.
-- `command tl` keeps working when a plugin aliases `tl` (oh-my-zsh's tmux plugin does).
-- **Your names win:** a name that already exists in your shell (zoxide's `z`, an oh-my-zsh alias, a
-  command) is kept and listed once at startup. `eval "$(command tl init zsh --force)"` replaces them;
-  `TL_INIT_QUIET=1` hides the notice.
-- Layouts are generated fresh from the manifest on every launch, so they are never stale.
-- Startup cost: about 0.1 s for `tl init`. To skip it, cache the output:
-  `tl init zsh > ~/.cache/tl-init.zsh` and `source` that file (regenerate after upgrading `tl` or
-  editing the manifest).
+Names your shell already has (zoxide's `z`, an alias) are kept and listed once at startup; `--force`
+in the `tl init` line replaces them, `TL_INIT_QUIET=1` hides the notice. Every option, per terminal:
+[tmux](docs/tmux.md) · [Zellij](docs/zellij.md) · [Herdr](docs/herdr.md), or `tl help init`.
 
-**Coming from the old short aliases?** They are replaced by readable names; `source shell/*-layouts.zsh`
-lines still work (they now call `tl init`), but one `eval` line is faster.
+<details>
+<summary>Coming from the old short aliases?</summary>
+
+They are replaced by readable names; `source shell/*-layouts.zsh` lines still work (they now call `tl init`), but one `eval` line is faster.
 
 | old (tmux · Zellij · Herdr) | new |
 |---|---|
@@ -335,14 +246,14 @@ lines still work (they now call `tl init`), but one `eval` line is faster.
 `TL_ALWAYS_REGEN` and the `TMUX_LAYOUTS_*` variables are gone: layouts are always fresh, and paths
 come from `defaults.yaml` / `TL_MANIFEST_DIR`.
 
+</details>
+
 ---
 
 ## Help
 
-`tl help` is the manual, generated from the manifest you use: every workflow with its directory,
-prefix and description, every `<backend>-<workflow>` and session command, the launch options,
-`tl init`, environment variables, exit codes, and which files each command touches. It opens in
-your pager on a terminal and is plain text when piped.
+`tl help` is the manual, generated from the manifest you use (workflows, every command and option,
+environment, exit codes, files touched), paged on a terminal and plain text when piped.
 
 ```bash
 tl -h               # overview: 3 examples + the commands
@@ -355,14 +266,17 @@ tl launch -h        # one command: options, examples, what it touches
 
 ## Customize
 
-Workflows live in `terminal_layouts/manifest/workflows/*.yaml`. Edit one, then:
+Workflows live in `terminal_layouts/manifest/workflows/*.yaml` (format below). In a clone:
 
 ```bash
-make test       # validate against the schema + check parity (+ Herdr unit tests)
-make install    # regenerate and write both outputs
+git clone https://github.com/gl0bal01/terminal-layouts && cd terminal-layouts
+make test       # schema + parity + idempotence + unit + bash/zsh tests
+make help       # every target: doctor, install, e2e (real Herdr/tmux/Zellij), ci, hooks, ...
 ```
 
-Override the manifest tree without rebuilding via `TL_MANIFEST_DIR=/path/to/manifest`.
+`tl` uses the manifest bundled when it was installed: point `TL_MANIFEST_DIR` at
+`terminal_layouts/manifest` in your clone (or any tree of your own), or reinstall with
+`pipx install --force .`, to use your edits.
 Directory roots (`~/ops/pentest`, …) live in `defaults.yaml` (`paths:`); a workflow's `prefix:` names
 the sessions opened from a directory (`prefix: pt-` → `pt-acme`) and must be unique (`tl validate`).
 
