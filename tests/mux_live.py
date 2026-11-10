@@ -175,9 +175,13 @@ class LiveMux(unittest.TestCase):
         # The session is listed before its layout has finished creating every tab.
         wait_for(lambda: names() == want)
         self.assertEqual(names(), want)
-        layout = subprocess.run(["zellij", "-s", session, "action", "dump-layout"],
-                                capture_output=True, text=True).stdout
-        self.assertIn(f'cwd "{cwd}"', layout)
+        def layout() -> str:
+            return subprocess.run(["zellij", "-s", session, "action", "dump-layout"],
+                                  capture_output=True, text=True).stdout
+
+        # Tabs exist before their panes: wait until the panes (and their cwd) are there.
+        wait_for(lambda: f'cwd "{cwd}"' in layout())
+        self.assertIn(f'cwd "{cwd}"', layout())
 
     def test_zellij_cli_and_shortcut(self):
         self.zellij_in_pty("tl launch zellij pentest --new acme")
