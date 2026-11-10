@@ -53,6 +53,7 @@ def emit_leaf(pane: dict, depth: int) -> list[str]:
         parts.append(f'command={kdl_str(program)}')
         if arg_tokens:
             parts.append("close_on_exit=false")
+            parts += _focus_size(pane)
             line = f"{pad}{' '.join(parts)} {{"
             lines = [line]
             args_line = f"{pad}{INDENT}args " + " ".join(kdl_str(t) for t in arg_tokens)
@@ -60,12 +61,14 @@ def emit_leaf(pane: dict, depth: int) -> list[str]:
             lines.append(f"{pad}}}")
             return lines
         parts.append("close_on_exit=false")
-    if pane.get("focus"):
-        parts.append("focus=true")
-    size = pane.get("size")
-    if size is not None:
-        parts.append(f'size={kdl_str(common.normalize_size(size))}')
-    return [f"{pad}{' '.join(parts)}"]
+    return [f"{pad}{' '.join(parts + _focus_size(pane))}"]
+
+
+def _focus_size(pane: dict) -> list[str]:
+    parts = ["focus=true"] if pane.get("focus") else []
+    if pane.get("size") is not None:
+        parts.append(f'size={kdl_str(common.normalize_size(pane["size"]))}')
+    return parts
 
 
 def emit_container(pane: dict, depth: int) -> list[str]:
