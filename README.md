@@ -273,7 +273,8 @@ tmux-docker -d --label web      # tmux: -d = detached · Herdr: --run-commands
   `TL_INIT_QUIET=1` hides the notice.
 - Layouts are generated fresh from the manifest on every launch, so they are never stale.
 - Startup cost: about 0.1 s for `tl init`. To skip it, cache the output:
-  `tl init zsh > ~/.cache/tl-init.zsh` and `source` that file (regenerate after upgrading `tl`).
+  `tl init zsh > ~/.cache/tl-init.zsh` and `source` that file (regenerate after upgrading `tl` or
+  editing the manifest).
 
 **Coming from the old short aliases?** They are replaced by readable names; `source shell/*-layouts.zsh`
 lines still work (they now call `tl init`), but one `eval` line is faster.
@@ -292,6 +293,22 @@ lines still work (they now call `tl init`), but one `eval` line is faster.
 
 `TL_ALWAYS_REGEN` and the `TMUX_LAYOUTS_*` variables are gone: layouts are always fresh, and paths
 come from `defaults.yaml` / `TL_MANIFEST_DIR`.
+
+---
+
+## Help
+
+`tl help` is the manual, generated from the manifest you use: every workflow with its directory,
+prefix and description, every `<backend>-<workflow>` and session command, the launch options,
+`tl init`, environment variables, exit codes, and which files each command touches. It opens in
+your pager on a terminal and is plain text when piped.
+
+```bash
+tl -h               # overview: 3 examples + the commands
+tl help             # the whole manual
+tl help launch      # one part: workflows, launch, init, herdr, install (Tab completes)
+tl launch -h        # one command: options, examples, what it touches
+```
 
 ---
 
@@ -361,7 +378,7 @@ manifest/workflows/*.yaml ──┬──► gen_tmux   ──► ~/.config/tmux
 terminal-layouts/
 ├── terminal_layouts/             # Python package (the `tl` CLI)
 │   ├── cli.py  common.py  gen_tmux.py  gen_zellij.py  validate.py
-│   ├── gen_herdr.py  launch_herdr.py  launch_mux.py  shell_init.py
+│   ├── gen_herdr.py  launch_herdr.py  launch_mux.py  shell_init.py  manual.py (tl help)
 │   ├── shell/completion.{zsh,bash}   # inlined by `tl init`
 │   └── manifest/                 # source of truth (bundled in the wheel)
 │       ├── schema.json  defaults.yaml

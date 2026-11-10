@@ -28,7 +28,7 @@ _tl_complete() {
     --backends) COMPREPLY=($(compgen -W "herdr tmux zellij herdr,tmux,zellij" -- "$cur")); return ;;
   esac
   if (( COMP_CWORD == 1 )); then
-    words="gen launch init list validate install --help --version"
+    words="gen launch init list validate install help --help --version"
   else
     # Count positional words after the subcommand, skipping options and their values.
     for (( i = 2; i < COMP_CWORD; i++ )); do
@@ -55,6 +55,7 @@ _tl_complete() {
         if [[ "$cur" == -* ]]; then words="--backends --force --help"
         elif (( n == 0 )); then words="zsh bash"; fi ;;
       install) words="--tmux-only --zellij-only --tmuxp-dir --zellij-dir --help" ;;
+      help) (( n == 0 )) && words="workflows launch init herdr install" ;;
     esac
   fi
   COMPREPLY=($(compgen -W "$words" -- "$cur"))

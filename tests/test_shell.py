@@ -15,6 +15,8 @@ import textwrap
 import unittest
 from pathlib import Path
 
+from terminal_layouts.manual import TOPICS
+
 REPO = Path(__file__).resolve().parent.parent
 SHELLS = ["bash", "zsh"]
 BACKENDS = ["tmux", "zellij", "herdr"]
@@ -158,7 +160,8 @@ class ShellInit(unittest.TestCase):
                                "project           current directory  -",
                                "tmux-pentest", "zellij-malware-analysis", "herdr-ai-agents",
                                "tmux-attach", "zellij-delete-all", "herdr-close",
-                               "options: [--run-commands]", "type tmux- zellij- herdr- then Tab"):
+                               "options: [--run-commands]", "type tmux- zellij- herdr- then Tab",
+                               "Full manual: tl help"):
                     self.assertIn(needle, help_text)
 
     def test_existing_names_are_kept_and_reported(self):
@@ -272,6 +275,17 @@ class ShellInit(unittest.TestCase):
                      "complete -F _tlc_zellij_sessions zellij-kill", "z-none"):
             self.assertIn(line, out.stdout + out.stderr)
 
+    def test_zsh_completion_offers_help_and_its_topics(self):
+        # _arguments needs a live completion widget: stub it to print its specs,
+        # its first call (the command word) picking `help` as the real one would.
+        stub = ("_arguments() { print -r -- \"$@\"; [[ $1 == -C ]] && { line=(help); return 1; }; true; }\n"
+                "_tl")
+        out, _ = self.run_sh("zsh", stub, env={"TL_INIT_QUIET": "1"})
+        self.assertEqual(out.returncode, 0, out.stderr)
+        commands, topics = out.stdout.splitlines()
+        self.assertIn(' help\\:"the manual', commands)
+        self.assertEqual(topics, f"1:topic:({' '.join(TOPICS)})")
+
     def test_bash_completion_candidates(self):
         def complete(line: str, fn: str = "_tl_complete", cwd: Path | None = None) -> list[str]:
             words = line.split(" ")
@@ -283,8 +297,11 @@ class ShellInit(unittest.TestCase):
             self.assertEqual(out.returncode, 0, out.stderr)
             return [w for w in out.stdout.splitlines() if w]
 
-        self.assertEqual(complete("tl "),
-                         ["gen", "launch", "init", "list", "validate", "install", "--help", "--version"])
+        self.assertEqual(complete("tl "), ["gen", "launch", "init", "list", "validate", "install", "help",
+                                           "--help", "--version"])
+        self.assertEqual(complete("tl help "), list(TOPICS))
+        self.assertEqual(complete("tl help in"), ["init", "install"])
+        self.assertEqual(complete("tl help launch "), [])
         self.assertEqual(complete("tl launch "), ["herdr", "tmux", "zellij"])
         self.assertEqual(complete("tl launch tmux p"), ["pentest", "project"])
         self.assertEqual(complete("tl launch tmux pentest My", cwd=self.root), ["My Project"])
