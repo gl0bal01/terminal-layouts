@@ -1,6 +1,5 @@
 # docker.yaml — Docker workflow session
-# Used by: tdk / tdocker (tmux) and zdk / zdk-new (zellij)
-# Launch in docker project dir: tdk .  /  zdk .
+# Open with: tmux-docker / zellij-docker / herdr-docker   [DIR|.] [--new NAME]
 
 id: docker
 name: Docker

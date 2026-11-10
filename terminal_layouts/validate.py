@@ -35,6 +35,14 @@ def main() -> int:
         else:
             print(f"OK: {wf_id}")
 
+    from terminal_layouts import shell_init
+
+    # Ids become shell commands (tmux-<id>, ...): they must not shadow tmux-ls & co.
+    for wf_id in workflows:
+        if wf_id in shell_init.RESERVED:
+            errors += 1
+            print(f"FAIL: {wf_id}: workflow id clashes with a session command (<backend>-{wf_id})")
+
     # Sessions launched from a directory are named <prefix><dir>: prefixes must
     # be unique, or two workflows opened from one directory would share a session.
     owners: dict[str, str] = {}

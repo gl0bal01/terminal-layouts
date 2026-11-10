@@ -8,7 +8,7 @@ Prerequisites: Python 3.10+ and Herdr 0.8.2 or newer (tested against 0.8.2 and 0
 
 ~~~sh
 pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"
-echo 'eval "$(command tl init zsh)"' >> ~/.zshrc   # shortcuts + tab completion (bash: tl init bash)
+echo 'eval "$(command tl init zsh)"' >> ~/.zshrc   # commands + tab completion (bash: tl init bash)
 ~~~
 
 Then, with Herdr running (`herdr`, or `herdr server` headless):
@@ -73,7 +73,7 @@ For safe parallel development, use separate Git worktrees per writing agent and 
 ## Validation
 
 ~~~sh
-make test        # plan determinism, every manifest, mocked-CLI adapter tests, shortcuts + completion (bash and zsh)
+make test        # plan determinism, every manifest, mocked-CLI adapter tests, shell commands + completion (bash and zsh)
 make e2e-herdr   # live: real Herdr server, every workflow (no mocks)
 make e2e         # e2e-herdr + real tmux and Zellij (e2e-mux)
 make ci          # every CI job locally on HEAD; `make hooks` runs it on each pushed commit

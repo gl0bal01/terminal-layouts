@@ -1,6 +1,5 @@
 # ctf.yaml — CTF competition workflow
-# Used by: tp / tctf (tmux) and zo / zctf-new (zellij)
-# Launch in ctf dir: tp ctf  /  zo ctf
+# Open with: tmux-ctf / zellij-ctf / herdr-ctf   [DIR|.] [--new NAME]
 
 id: ctf
 name: CTF

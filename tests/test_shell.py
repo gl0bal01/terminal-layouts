@@ -110,6 +110,26 @@ class ShellInit(unittest.TestCase):
                     self.assertEqual(out.returncode, 0, out.stderr)
                     self.assertEqual(log, expected)
 
+    def test_bash_posix_mode_defines_nothing_and_keeps_going(self):
+        log = self.root / "posix.log"
+        script = f"source {self.root / 'init.bash'}\ntype tmux-pentest >/dev/null 2>&1 || echo none\necho after"
+        env = {"PATH": f"{self.bin}{os.pathsep}/usr/bin{os.pathsep}/bin", "HOME": str(self.root), "LOG": str(log)}
+        out = subprocess.run(["bash", "--posix", "--norc", "-c", script], capture_output=True, text=True, env=env)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertEqual(out.stdout.split(), ["none", "after"])
+        self.assertIn("POSIX mode", out.stderr)
+
+    def test_layouts_only_lists_what_is_loaded(self):
+        for shell in SHELLS:
+            with self.subTest(shell=shell):
+                out, _ = self.run_sh(shell, "layouts", setup="alias z='echo zoxide'",
+                                     init='eval "$(tl init {shell} --backends tmux,zellij)"',
+                                     env={"TL_INIT_QUIET": "1"})
+                self.assertIn("type tmux- zellij- then Tab", out.stdout)
+                self.assertNotIn("herdr-", out.stdout)
+                self.assertRegex(out.stdout, r"\n  t +=  ?tmux\n")
+                self.assertNotRegex(out.stdout, r"\n  z +=")  # z kept as the user's alias
+
     def test_old_short_names_are_gone(self):
         for shell in SHELLS:
             with self.subTest(shell=shell):
@@ -138,7 +158,7 @@ class ShellInit(unittest.TestCase):
                                "project           current directory  -",
                                "tmux-pentest", "zellij-malware-analysis", "herdr-ai-agents",
                                "tmux-attach", "zellij-delete-all", "herdr-close",
-                               "options: [--run-commands]", "type tmux- / zellij- / herdr- then Tab"):
+                               "options: [--run-commands]", "type tmux- zellij- herdr- then Tab"):
                     self.assertIn(needle, help_text)
 
     def test_existing_names_are_kept_and_reported(self):
@@ -278,7 +298,13 @@ class ShellInit(unittest.TestCase):
                                   'compopt() { echo "compopt $1 $2"; }; _tl_complete', cwd=self.root),
                          ["compopt -o filenames", "My Project"])
         self.assertEqual(complete("tmux-pentest My", "_tlc_launch_tmux", cwd=self.root), ["My Project"])
-        self.assertEqual(complete("tmux-pentest . --", "_tlc_launch_tmux"), ["--new", "--label", "--detach"])
+        self.assertEqual(complete("tmux-pentest --", "_tlc_launch_tmux"), ["--new", "--label", "--detach"])
+        # One location only: nothing more after DIR or --new NAME (tl launch would refuse it).
+        self.assertEqual(complete("tmux-pentest . --", "_tlc_launch_tmux"), ["--label", "--detach"])
+        self.assertEqual(complete("tmux-pentest . ", "_tlc_launch_tmux", cwd=self.root), [])
+        self.assertEqual(complete("tmux-pentest --new acme ", "_tlc_launch_tmux", cwd=self.root), [])
+        self.assertEqual(complete("tmux-pentest --label x My", "_tlc_launch_tmux", cwd=self.root),
+                         ["My Project"])
         self.assertEqual(complete("herdr-pentest --", "_tlc_launch_herdr"),
                          ["--new", "--label", "--run-commands"])
         self.assertEqual(complete("herdr-pentest --new ", "_tlc_launch_herdr"), [])

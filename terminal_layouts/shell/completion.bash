@@ -60,13 +60,27 @@ _tl_complete() {
   COMPREPLY=($(compgen -W "$words" -- "$cur"))
 }
 
-# <backend>-<workflow>: an optional directory ("." = here), --new NAME, options.
+# <backend>-<workflow>: ONE of an optional directory ("." = here) or --new NAME,
+# plus options (tl launch rejects a second location).
 _tlc_launch() {
-  local cur="${COMP_WORDS[COMP_CWORD]}" prev="${COMP_WORDS[COMP_CWORD-1]}"
+  local cur="${COMP_WORDS[COMP_CWORD]}" prev="${COMP_WORDS[COMP_CWORD-1]}" i placed=""
   COMPREPLY=()
   case "$prev" in --new|--label) return ;; esac
-  if [[ "$cur" != -* ]]; then _tlc_dirs "$cur"; return; fi
-  COMPREPLY=($(compgen -W "--new $(_tlc_opts "$1")" -- "$cur"))
+  for (( i = 1; i < COMP_CWORD; i++ )); do
+    case "${COMP_WORDS[i]}" in
+      --new) placed=1; (( i++ )) ;;
+      --label) (( i++ )) ;;
+      -*) ;;
+      *) placed=1 ;;
+    esac
+  done
+  if [[ "$cur" != -* ]]; then
+    [[ -z "$placed" ]] && _tlc_dirs "$cur"
+    return
+  fi
+  local new="--new"
+  [[ -n "$placed" ]] && new=""
+  COMPREPLY=($(compgen -W "$new $(_tlc_opts "$1")" -- "$cur"))
 }
 _tlc_launch_herdr()  { _tlc_launch herdr; }
 _tlc_launch_tmux()   { _tlc_launch tmux; }

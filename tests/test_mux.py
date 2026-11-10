@@ -202,6 +202,36 @@ class ShellInitRender(unittest.TestCase):
         self.assertIn("command cat <<'__TL_HELP__'", script)
         self.assertNotIn("\n  tl launch", script)
 
+    def test_validate_and_init_on_other_manifest_trees(self):
+        import shutil
+        import subprocess
+        import sys
+
+        repo = Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as tmp:
+            tree = Path(tmp, "manifest")
+            shutil.copytree(repo / "terminal_layouts" / "manifest", tree)
+            env = dict(os.environ, TL_MANIFEST_DIR=str(tree), PYTHONPATH=str(repo))
+
+            def tl(*argv):
+                return subprocess.run([sys.executable, "-m", "terminal_layouts.cli", *argv],
+                                      capture_output=True, text=True, env=env)
+
+            # A workflow called "ls" would become tmux-ls, shadowing the session command.
+            text = (tree / "workflows" / "pentest.yaml").read_text()
+            (tree / "workflows" / "ls.yaml").write_text(
+                text.replace("id: pentest", "id: ls").replace('prefix: "pt-"', 'prefix: "ls-"'))
+            out = tl("validate")
+            self.assertEqual(out.returncode, 1)
+            self.assertIn("ls: workflow id clashes with a session command", out.stdout)
+            self.assertEqual(tl("init", "zsh").returncode, 1)
+            # No workflows at all: still a valid (empty) integration, no traceback.
+            for f in (tree / "workflows").glob("*.yaml"):
+                f.unlink()
+            out = tl("init", "bash")
+            self.assertEqual(out.returncode, 0, out.stderr)
+            self.assertIn("function tmux-ls {", out.stdout)
+
     def test_cli_rejects_unknown_backend(self):
         err = io.StringIO()
         with redirect_stderr(err), redirect_stdout(io.StringIO()):

@@ -62,7 +62,7 @@ cd terminal-layouts
 
 make doctor     # check tmux / tmuxp / zellij / herdr are present
 make install    # write all 8 workflows to ~/.config (tmuxp + zellij)
-echo 'eval "$(command tl init zsh)"' >> ~/.zshrc     # shortcuts + tab completion (bash: tl init bash)
+echo 'eval "$(command tl init zsh)"' >> ~/.zshrc     # commands + tab completion (bash: tl init bash)
 ```
 
 `make install` writes every workflow into your multiplexer config dirs:
@@ -126,7 +126,7 @@ layout file to install: `tl` creates the workspace directly in the running Herdr
 
 ```bash
 pipx install --force "git+https://github.com/gl0bal01/terminal-layouts"   # Herdr support is newer than PyPI 0.1.0
-echo 'eval "$(command tl init zsh)"' >> ~/.zshrc                                  # shortcuts + tab completion
+echo 'eval "$(command tl init zsh)"' >> ~/.zshrc                                  # commands + tab completion
 ```
 
 **Every day**
@@ -140,7 +140,7 @@ herdr-malware-analysis .       # malware-analysis in the current directory
 herdr-ls                       # list workspaces   ·  herdr-close <id>   ·  layouts  (everything)
 ```
 
-Same commands without shortcuts: `tl launch herdr <workflow> [DIR|.] [--new NAME] [--label TEXT]`,
+Same thing without the shell commands: `tl launch herdr <workflow> [DIR|.] [--new NAME] [--label TEXT]`,
 and `tl gen herdr <workflow>` prints the plan without touching Herdr. Agents are never started for you:
 type `opencode`, `pi`, `claude` or `codex` in a pane. Manifest pane commands run only with `--run-commands`.
 
@@ -278,15 +278,17 @@ tmux-docker -d --label web      # tmux: -d = detached · Herdr: --run-commands
 **Coming from the old short aliases?** They are replaced by readable names; `source shell/*-layouts.zsh`
 lines still work (they now call `tl init`), but one `eval` line is faster.
 
-| old | new |
+| old (tmux · Zellij · Herdr) | new |
 |---|---|
-| `tpt`, `zpt` … (`tai`, `tdk`, `tma`, `tos`, `tctf`, `zp`) | `tmux-pentest`, `zellij-pentest` … (`*-claude-projects`, `*-docker`, `*-malware-analysis`, `*-osint`, `*-ctf`) |
-| `tproject`, `zo <dir>` | `tmux-project`, `zellij-project <dir>` (project runs in the current directory) |
-| `tpt-new acme` | `tmux-pentest --new acme` |
-| `tpt .` | `tmux-pentest .` |
+| `tag` · `zag` · `hag` | `tmux-ai-agents` · `zellij-ai-agents` · `herdr-ai-agents` |
+| `tai` · `zp`/`zai` · `hai` | `tmux-claude-projects` · `zellij-claude-projects` · `herdr-claude-projects` |
+| `tproject` · `zo <dir>`/`zproject` · `hproject` | `tmux-project` · `zellij-project <dir>` · `herdr-project` (project runs in the current directory) |
+| `tdk` `tpt` `tma` `tos` `tctf` (same with `z…`, `h…`) | `tmux-docker` `tmux-pentest` `tmux-malware-analysis` `tmux-osint` `tmux-ctf` (same with `zellij-`, `herdr-`) |
+| `tpt .` · `tpt-new acme` | `tmux-pentest .` · `tmux-pentest --new acme` |
 | `tls` `ta` `tks` `tka` | `tmux-ls` `tmux-attach` `tmux-kill` `tmux-kill-all` |
 | `zls` `za` `zks` `zka` `zds` `zda` | `zellij-ls` `zellij-attach` `zellij-kill` `zellij-kill-all` `zellij-delete` `zellij-delete-all` |
-| `th` `zh` (`thelp` `zhelp`) | `layouts` |
+| `hls` · `hks`/`hk` | `herdr-ls` · `herdr-close` |
+| `th` `zh` `hh` (`thelp` `zhelp` `hhelp`) | `layouts` |
 
 `TL_ALWAYS_REGEN` and the `TMUX_LAYOUTS_*` variables are gone: layouts are always fresh, and paths
 come from `defaults.yaml` / `TL_MANIFEST_DIR`.
@@ -377,7 +379,7 @@ terminal-layouts/
 - **Schema** — every manifest validated against `schema.json`.
 - **Parity** — tmux and Zellij outputs must be structurally equivalent (same tabs, same panes, same names).
 - **Idempotence** — regenerating produces byte-identical output (Herdr plans included).
-- **Live** — every workflow is launched on real, throwaway Herdr, tmux and Zellij servers (also through the bash/zsh shortcuts) and the resulting tabs, panes, split ratios, focus and directories must match the manifest.
+- **Live** — every workflow is launched on real, throwaway Herdr, tmux and Zellij servers (also through the bash/zsh commands) and the resulting tabs, panes, split ratios, focus and directories must match the manifest.
 
 All of them run in CI on every push and PR (Python 3.10 + 3.12, plus a live Herdr job on a pinned, sha256-checked release). `make ci` runs the same jobs locally; `make hooks` runs it before each push.
 

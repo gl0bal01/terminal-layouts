@@ -1,6 +1,5 @@
 # osint.yaml — OSINT investigation workflow layout
-# Used by: zos / zos-new (zellij)
-# Launch with target: zos-new <target-name>
+# Open with: tmux-osint / zellij-osint / herdr-osint   [--new <target>]
 
 id: osint
 name: OSINT

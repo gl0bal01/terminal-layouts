@@ -1,6 +1,5 @@
 # project.yaml — focused single-project session
-# Used by: tp / tproject (tmux) and zo / zp-new (zellij)
-# Launch in current dir: tp .  /  zo .
+# Open with: tmux-project / zellij-project / herdr-project   (in the current directory)
 
 id: project
 name: Projet
