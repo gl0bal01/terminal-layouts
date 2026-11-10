@@ -54,7 +54,8 @@ def wait_for(predicate, timeout: float = 10.0) -> bool:
 
 def foreground(pane_id: str) -> list[str]:
     info = herdr("pane", "process-info", "--pane", pane_id)["process_info"]
-    return [p["cmdline"] for p in info["foreground_processes"]]
+    # A process caught while it starts or exits is listed without a cmdline: callers poll again.
+    return [p["cmdline"] for p in info["foreground_processes"] if p.get("cmdline")]
 
 
 class LiveHerdr(unittest.TestCase):
