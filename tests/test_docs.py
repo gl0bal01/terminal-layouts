@@ -1,7 +1,8 @@
-"""docs/{tmux,zellij,herdr}.md: the beginner tutorials stay in step with what `tl init` defines.
+"""The docs stay in step with what `tl init` defines.
 
-A new workflow, session command or launch option without its line in the tutorial fails here, and so
-does a link, image or #anchor that leads nowhere.
+docs/usage.md lists every workflow and launch option, each backend tutorial its session commands
+and its own option. Something new without its line fails here, and so does a link, image or
+#anchor that leads nowhere in any page.
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ from terminal_layouts import common, shell_init
 
 REPO = Path(__file__).resolve().parent.parent
 DOCS = REPO / "docs"
-OPTIONS = {"tmux": ["-d"], "zellij": [], "herdr": ["--run-commands"]}  # besides the shared ones
+OPTIONS = {"tmux": ["-d"], "zellij": [], "herdr": ["--run-commands"]}  # one backend each
 SHARED = ["--new", "--label", "--cwd"]
 
 
@@ -30,23 +31,25 @@ def slugs(markdown: str) -> set[str]:
     return out
 
 
-class Tutorials(unittest.TestCase):
-    def test_every_command_with_its_tl_equivalent(self):
+class Docs(unittest.TestCase):
+    def test_usage_lists_every_workflow_and_shared_option(self):
+        text = (DOCS / "usage.md").read_text()
+        for wf in common.list_workflows():
+            with self.subTest(workflow=wf):
+                self.assertRegex(text, rf"(?m)^\| `{re.escape(wf)}` \|")
+        for option in SHARED + [o for options in OPTIONS.values() for o in options]:
+            with self.subTest(option=option):
+                self.assertRegex(text, word(option))
+
+    def test_tutorials_list_their_session_commands_and_option(self):
         for backend in shell_init.BACKENDS:
             text = (DOCS / f"{backend}.md").read_text()
-            for wf in common.list_workflows():
-                with self.subTest(backend=backend, workflow=wf):
-                    self.assertRegex(text, rf"`{backend}-{wf}` \| `tl launch {backend} {wf}`")
+            self.assertIn("](usage.md)", text)
             for suffix, *_ in shell_init.SESSIONS[backend]:
                 with self.subTest(backend=backend, command=suffix):
                     self.assertRegex(text, word(f"{backend}-{suffix}"))
             self.assertIn(f"| `{shell_init.CORE[backend]}` | `{backend}` |", text)
-
-    def test_every_launch_option(self):
-        for backend in shell_init.BACKENDS:
-            text = (DOCS / f"{backend}.md").read_text()
-            self.assertIn(f"| `{backend}-pentest .` | `tl launch {backend} pentest .` |", text)
-            for option in SHARED + OPTIONS[backend]:
+            for option in OPTIONS[backend]:
                 with self.subTest(backend=backend, option=option):
                     self.assertRegex(text, word(option))
 
@@ -54,7 +57,7 @@ class Tutorials(unittest.TestCase):
         readme = (REPO / "README.md").read_text()
         for backend in shell_init.BACKENDS:
             self.assertIn(f"](docs/{backend}.md)", readme)
-        for page in [*(DOCS / f"{b}.md" for b in shell_init.BACKENDS), DOCS / "ai-agents.md", REPO / "README.md"]:
+        for page in [*sorted(DOCS.glob("*.md")), REPO / "README.md"]:
             text = page.read_text()
             for target in re.findall(r"\]\(([^)\s]+)\)", text):
                 if re.match(r"https?://", target):
