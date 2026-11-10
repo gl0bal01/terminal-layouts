@@ -102,6 +102,7 @@ if _tl_claim layouts; then
   done
   echo
   echo "Tab completes every command: type$loaded then Tab."
+  echo "Full manual: tl help   (one part: tl help TOPIC, Tab lists them)"
   }}
 fi
 '''
@@ -110,7 +111,7 @@ EPILOGUE = r'''if [ -n "$_TL_POSIX" ]; then
   echo "terminal-layouts: bash runs in POSIX mode, which forbids names like tmux-pentest; nothing defined" >&2
 fi
 if [ -n "$_TL_SKIPPED" ] && [ -z "${TL_INIT_QUIET:-}" ]; then
-  printf 'terminal-layouts: kept your existing%s (tl init --force replaces them; TL_INIT_QUIET=1 hides this)\n' \
+  printf 'terminal-layouts: kept your existing%s (add --force to your tl init line to replace them; TL_INIT_QUIET=1 hides this)\n' \
     "$_TL_SKIPPED" >&2
 fi
 '''
@@ -121,7 +122,8 @@ def _display(path: str) -> str:
     return "~" + path[len(home):] if path == home or path.startswith(home + os.sep) else path
 
 
-def _workflows() -> list[dict]:
+def workflows() -> list[dict]:
+    """Workflow rows (id, prefix, description, display dir) for the shell help and `tl help`."""
     defaults = common.load_defaults()
     out = []
     for wf_id in common.list_workflows():
@@ -133,7 +135,7 @@ def _workflows() -> list[dict]:
         wf = common.load_workflow(wf_id)
         cwd = common.resolve_cwd(wf, defaults) or "$PWD"
         out.append({"id": wf_id, "prefix": wf.get("prefix", ""),
-                    "description": wf.get("description", ""),
+                    "description": wf.get("description") or "",
                     "dir": "current directory" if cwd == "$PWD" else _display(cwd)})
     return out
 
@@ -197,14 +199,14 @@ def render(shell: str, backends: list[str] | None = None, force: bool = False) -
     if shell not in ("zsh", "bash"):
         raise ValueError(f"unsupported shell {shell!r} (zsh or bash)")
     chosen = [b for b in BACKENDS if b in (backends or BACKENDS)]
-    workflows = _workflows()
+    rows = workflows()
     parts = [PRELUDE.format(shell=shell, force="1" if force else "")]
     for backend in chosen:
-        code, regs = _backend(backend, workflows)
+        code, regs = _backend(backend, rows)
         parts.append(code)
         # One variable per backend, overwritten on re-eval: never grows.
         parts.append(f'_TLC_REGS_{backend}="{" ".join(regs)}"\n')
-    parts.append("\n" + LAYOUTS.format(text=_workflow_help(workflows)) + "\n")
+    parts.append("\n" + LAYOUTS.format(text=_workflow_help(rows)) + "\n")
     parts.append((Path(__file__).parent / "shell" / f"completion.{shell}").read_text(encoding="utf-8"))
     parts.append("\n" + EPILOGUE)
     return "".join(parts)

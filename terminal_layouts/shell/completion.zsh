@@ -7,7 +7,7 @@ _tl() {
   _arguments -C \
     '(- *)--version[show version and exit]' \
     '(- *)'{-h,--help}'[show help and exit]' \
-    '1:command:((gen\:"print a layout or Herdr plan" launch\:"open a workflow (Herdr, tmux, Zellij)" init\:"print shell commands + completion" list\:"list workflows" validate\:"validate manifests" install\:"install tmuxp + Zellij layouts"))' \
+    '1:command:((gen\:"print a layout or Herdr plan" launch\:"open a workflow (Herdr, tmux, Zellij)" init\:"print shell commands + completion" list\:"list workflows" validate\:"validate manifests" install\:"install tmuxp + Zellij layouts" help\:"the manual (help TOPIC for one part)"))' \
     '*::arg:->args' && return
   local -a workflows
   case $line[1] in
@@ -27,6 +27,8 @@ _tl() {
       _arguments '1:shell:(zsh bash)' \
         '--backends[only these backends]:backends:_values -s , backend herdr tmux zellij' \
         '--force[replace existing commands/aliases with the same names]' ;;
+    help)
+      _arguments '1:topic:(workflows launch init herdr install)' ;;
     install)
       _arguments \
         '(--zellij-only)--tmux-only[tmuxp layouts only]' \

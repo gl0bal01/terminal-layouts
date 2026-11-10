@@ -34,7 +34,8 @@ def _run_with_layout(text: str, suffix: str, argv_for: Callable[[str], list[str]
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(text)
-        return run(argv_for(path)).returncode
+        rc = run(argv_for(path)).returncode
+        return 128 - rc if rc < 0 else rc  # killed by signal N: 128+N, as a shell reports
     finally:
         os.unlink(path)
 

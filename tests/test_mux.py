@@ -47,6 +47,8 @@ class LaunchMux(unittest.TestCase):
         run = FakeRun(rc=3)
         self.assertEqual(launch_mux.launch_tmux(self.wf, "/srv", "s", detach=True, run=run), 3)
         self.assertEqual(run.argv[-2], "-d")
+        # Killed by SIGTERM: 143 like a shell, not SystemExit(-15) = 241.
+        self.assertEqual(launch_mux.launch_tmux(self.wf, "/srv", "s", run=FakeRun(rc=-15)), 143)
 
     def test_zellij_uses_layout_file_session_and_default_cwd(self):
         run = FakeRun()

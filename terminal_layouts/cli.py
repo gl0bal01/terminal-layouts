@@ -11,16 +11,18 @@ Subcommands:
     tl list                     list available workflows
     tl validate                 validate all manifests against the schema
     tl install                  write all layouts into the tmuxp/zellij config dirs
+    tl help [TOPIC]             the manual, generated from the manifest (manual.py)
 """
 from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import sys
 from pathlib import Path
 
 from terminal_layouts import (__version__, common, gen_herdr, gen_tmux, gen_zellij, launch_herdr,
-                              launch_mux, validate)
+                              launch_mux, manual, validate)
 
 
 def _config_home() -> Path:
@@ -172,19 +174,135 @@ def _cmd_install(args: argparse.Namespace) -> int:
     return 0
 
 
-def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="tl", description="terminal-layouts generator")
-    p.add_argument("--version", action="version", version=f"terminal-layouts {__version__}")
-    sub = p.add_subparsers(dest="command", required=True)
+def _cmd_help(args: argparse.Namespace) -> int:
+    import pydoc
 
-    gen = sub.add_parser("gen", help="generate a layout")
+    try:
+        text = manual.render(args.topic)
+    except ValueError as exc:  # unusable workflow id, as for tl init
+        return _err(str(exc), 1)
+    if (sys.stdout.isatty() and os.environ.get("TERM", "dumb") not in ("dumb", "emacs")
+            and shutil.which("less")
+            and not (os.environ.get("MANPAGER") or os.environ.get("PAGER"))):
+        # Like git: a short topic needs no 'q' and stays on screen. Flags, not $LESS:
+        # pydoc replaces $LESS from Python 3.13 on.
+        os.environ["PAGER"] = "less -FRX"
+    pydoc.pager(text)  # plain write unless stdin and stdout are terminals
+    return 0
+
+
+_RAW = argparse.RawDescriptionHelpFormatter
+
+TL_EPILOG = """\
+examples (bundled workflows):
+  tl list
+      the workflows (tl help workflows: with directories and prefixes)
+  tl launch tmux pentest --new acme
+      create ~/ops/pentest/acme and open it as tmux session pt-acme
+  eval "$(command tl init zsh)"
+      in ~/.zshrc: tmux-pentest, zellij-docker, herdr-ai-agents, ... + Tab
+
+The manual: tl help (one part: tl help workflows|launch|init|herdr|install).
+One command: tl COMMAND -h. Only tl install writes files in ~/.config.
+"""
+
+GEN_EPILOG = """\
+examples (bundled workflows):
+  tl gen tmux pentest                   tmuxp YAML
+  tl gen zellij pentest > pentest.kdl   save a Zellij layout
+  tl gen herdr pentest                  Herdr plan, before DIR/--new/--label
+
+touches: nothing; reads the manifest, writes stdout.
+"""
+
+LAUNCH_EPILOG = """\
+examples (bundled workflows):
+  tl launch tmux pentest                ~/ops/pentest, session pentest
+  tl launch tmux pentest .              here, session pt-<this directory>
+  tl launch zellij pentest --new acme   ~/ops/pentest/acme, session pt-acme
+  tl launch tmux docker -d --label web  detached tmux session web
+  tl launch herdr ai-agents             Herdr workspace ai-<this directory>
+
+touches: tmux, Zellij: a temporary layout file, deleted when they exit or
+detach. Herdr: a new workspace in the running server. --new NAME creates
+that directory. Never ~/.config. More: tl help launch
+"""
+
+INIT_EPILOG = """\
+examples:
+  eval "$(command tl init zsh)"                         every backend
+  eval "$(command tl init bash --backends tmux,herdr)"  only these two
+  tl init zsh > ~/.cache/tl-init.zsh                    cache, then source it
+
+Names your shell already has are kept and reported once at startup:
+--force replaces them, TL_INIT_QUIET=1 hides the notice.
+touches: nothing; prints shell code to stdout. More: tl help init
+"""
+
+LIST_EPILOG = """\
+examples:
+  tl list
+  tl help workflows     the same, with directory, prefix and description
+
+touches: nothing; reads the manifest, writes stdout.
+"""
+
+VALIDATE_EPILOG = """\
+examples:
+  tl validate
+  TL_MANIFEST_DIR=~/my-manifest tl validate
+
+touches: nothing; reads the manifest, writes stdout. Exit 1 on any failure.
+"""
+
+INSTALL_EPILOG = """\
+examples:
+  tl install                          tmuxp + Zellij layouts
+  tl install --tmux-only              tmuxp layouts only
+  tl install --zellij-dir ./layouts   Zellij layouts somewhere else
+
+touches: overwrites $XDG_CONFIG_HOME/tmuxp/WORKFLOW.yaml and
+$XDG_CONFIG_HOME/zellij/layouts/WORKFLOW.kdl (default ~/.config); the only
+tl command that writes there. More: tl help install
+"""
+
+HELP_EPILOG = """\
+examples:
+  tl help                    the whole manual
+  tl help launch             where a workflow opens, names, options
+  tl help | grep -- --new    plain text when piped
+
+touches: nothing.
+"""
+
+
+def _sub(sub: argparse._SubParsersAction, name: str, summary: str, description: str,
+         epilog: str) -> argparse.ArgumentParser:
+    return sub.add_parser(name, help=summary, description=description, epilog=epilog,
+                          formatter_class=_RAW)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="tl", formatter_class=_RAW, epilog=TL_EPILOG,
+        description="terminal-layouts: one YAML manifest -> tmux, Zellij and Herdr workspaces.")
+    p.add_argument("--version", action="version", version=f"terminal-layouts {__version__}")
+    sub = p.add_subparsers(dest="command", required=True, title="commands", metavar="COMMAND")
+
+    gen = _sub(sub, "gen", "print a layout or Herdr plan to stdout",
+               "Print WORKFLOW as tmuxp YAML (tmux), Zellij KDL (zellij) or the inert\n"
+               "Herdr JSON plan (herdr). Nothing is opened.", GEN_EPILOG)
     gen.add_argument("target", choices=["tmux", "zellij", "herdr"], help="output format")
-    gen.add_argument("workflow", help="workflow id (see `tl list`)")
+    gen.add_argument("workflow", metavar="WORKFLOW", help="workflow id (see `tl list`)")
     gen.set_defaults(func=_cmd_gen)
 
-    launch = sub.add_parser("launch", help="open a workflow: Herdr workspace, tmux or Zellij session")
-    launch.add_argument("target", choices=["herdr", "tmux", "zellij"])
-    launch.add_argument("workflow", help="workflow id (see `tl list`)")
+    launch = _sub(sub, "launch", "open a workflow: tmux or Zellij session, Herdr workspace",
+                  "Open WORKFLOW as a tmux session (through tmuxp), a new Zellij session or a\n"
+                  "workspace in the running Herdr server, with the layout generated fresh from\n"
+                  "the manifest. The shell commands of tl init (tmux-pentest, ...) run this.",
+                  LAUNCH_EPILOG)
+    launch.add_argument("target", choices=["herdr", "tmux", "zellij"], help="backend")
+    launch.add_argument("workflow", metavar="WORKFLOW", help="workflow id (see `tl list`)")
     launch.add_argument("dir", nargs="?", metavar="DIR",
                         help="run in DIR ('.' = here) instead of the manifest directory; "
                              "named <prefix><DIR name> unless --label")
@@ -194,13 +312,17 @@ def build_parser() -> argparse.ArgumentParser:
     launch.add_argument("--label", metavar="NAME",
                         help="Herdr workspace label / tmux or Zellij session name")
     launch.add_argument("--run-commands", action="store_true",
-                        help="Herdr only: also run the manifest pane commands (opt-in)")
+                        help="Herdr only: also run the manifest pane commands")
     launch.add_argument("-d", "--detach", action="store_true",
                         help="tmux only: create the session without attaching")
     launch.set_defaults(func=_cmd_launch)
 
-    init = sub.add_parser("init", help="print shell commands (tmux-pentest, ...) + tab completion",
-                          description='Add  eval "$(command tl init zsh)"  (or bash) to your shell rc.')
+    init = _sub(sub, "init", "print shell commands (tmux-pentest, ...) + tab completion",
+                "Print shell code that defines BACKEND-WORKFLOW commands (tmux-pentest,\n"
+                "zellij-docker, herdr-ai-agents, ...), session commands (tmux-ls, ...),\n"
+                "layouts, and tab completion. Add to your shell rc:\n"
+                '  eval "$(command tl init zsh)"        (bash: tl init bash, in ~/.bashrc)',
+                INIT_EPILOG)
     init.add_argument("shell", choices=["zsh", "bash"])
     init.add_argument("--backends", metavar="LIST",
                       help="comma-separated subset of tmux,zellij,herdr (default: all)")
@@ -208,21 +330,35 @@ def build_parser() -> argparse.ArgumentParser:
                       help="replace existing commands/aliases that have the same names")
     init.set_defaults(func=_cmd_init)
 
-    lst = sub.add_parser("list", help="list available workflows")
+    lst = _sub(sub, "list", "list workflow ids",
+               "Print the workflow ids of the manifest, one per line.", LIST_EPILOG)
     lst.set_defaults(func=_cmd_list)
 
-    val = sub.add_parser("validate", help="validate manifests against the schema")
+    val = _sub(sub, "validate", "check every manifest",
+               "Check every workflow against schema.json, that no id clashes with a\n"
+               "session command (tmux-ls, ...) and that prefixes are unique.", VALIDATE_EPILOG)
     val.set_defaults(func=_cmd_validate)
 
-    inst = sub.add_parser("install", help="write all layouts into the config dirs")
+    inst = _sub(sub, "install", "write tmuxp + Zellij layouts to ~/.config",
+                "Write every workflow as a static layout, for plain `tmuxp load` and\n"
+                "`zellij --layout`. tl launch and the shell commands do not need it.",
+                INSTALL_EPILOG)
     grp = inst.add_mutually_exclusive_group()
     grp.add_argument("--tmux-only", action="store_true", help="install tmuxp layouts only")
     grp.add_argument("--zellij-only", action="store_true", help="install Zellij layouts only")
-    inst.add_argument("--tmuxp-dir", help="override tmuxp dir (default: $XDG_CONFIG_HOME/tmuxp)")
+    inst.add_argument("--tmuxp-dir", metavar="DIR", help="override tmuxp dir (default: $XDG_CONFIG_HOME/tmuxp)")
     inst.add_argument(
-        "--zellij-dir", help="override Zellij layouts dir (default: $XDG_CONFIG_HOME/zellij/layouts)"
+        "--zellij-dir", metavar="DIR", help="override Zellij layouts dir (default: $XDG_CONFIG_HOME/zellij/layouts)"
     )
     inst.set_defaults(func=_cmd_install)
+
+    hlp = _sub(sub, "help", "the manual (tl help TOPIC for one part)",
+               "Show the manual, generated from the manifest, or one TOPIC of it. Paged on\n"
+               "a terminal ($MANPAGER, else $PAGER, else less -FRX); plain text when piped.",
+               HELP_EPILOG)
+    hlp.add_argument("topic", nargs="?", choices=manual.TOPICS, metavar="TOPIC",
+                     help=f"one of: {', '.join(manual.TOPICS)}")
+    hlp.set_defaults(func=_cmd_help)
 
     return p
 
