@@ -5,7 +5,7 @@
 # talks to your own tmux, Zellij or Herdr servers.
 #
 #   bash docs/demo-env.sh            fresh env, tl NOT installed (docs/demo/01-install.tape)
-#   bash docs/demo-env.sh --install  fresh env + tl installed with pipx + shell commands enabled (02..05)
+#   bash docs/demo-env.sh --install  fresh env + tl installed with pipx + shell commands enabled (02..06)
 #   bash docs/demo-env.sh --stop     stop the demo's tmux, Zellij and Herdr servers
 #
 # Tapes enter it with:  exec /tmp/tldemo/env zsh -i

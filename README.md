@@ -13,7 +13,7 @@ Describe each workspace **once**; generate both `tmuxp` YAML and Zellij KDL from
 
 ![Install terminal-layouts and enable the shell commands](docs/demo/01-install.gif)
 
-<sub><code>pipx install</code>, one line in <code>~/.zshrc</code>, then every workflow is <code>tmux-…</code>, <code>zellij-…</code> or <code>herdr-…</code> + Tab. <a href="#learn-it-in-5-gifs">Learn it in 5 GIFs ↓</a></sub>
+<sub><code>pipx install</code>, one line in <code>~/.zshrc</code>, then every workflow is <code>tmux-…</code>, <code>zellij-…</code> or <code>herdr-…</code> + Tab. <a href="#learn-it-in-6-gifs">Learn it in 6 GIFs ↓</a></sub>
 
 </div>
 
@@ -117,10 +117,10 @@ tl gen zellij pentest                              # or emit one to stdout
 
 ---
 
-## Learn it in 5 GIFs
+## Learn it in 6 GIFs
 
-Every command is `<backend>-<workflow>`; `layouts` lists them all. Each GIF is a real recording
-(throwaway HOME, canned data in the monitor panes), rendered from `docs/demo/*.tape`.
+Every command is `<backend>-<workflow>`; `layouts` lists them all, `tl help` explains them. Each GIF
+is a real recording (throwaway HOME, canned data in the monitor panes), rendered from `docs/demo/*.tape`.
 
 **1 · Install** — `pipx install`, one `eval` line, `layouts`, Tab on `tmux-` / `zellij-` / `herdr-`.
 
@@ -143,6 +143,11 @@ Every command is `<backend>-<workflow>`; `layouts` lists them all. Each GIF is a
 `tmux-ls` · `tmux-attach` · `tmux-kill`.
 
 ![Options: directory, --new, --label, detached](docs/demo/05-options.gif)
+
+**6 · The `tl` commands** — `tl -h`, the `tl help` manual (paged; `tl help <topic>` + Tab), `tl list`,
+`tl gen`, `tl validate`, `tl launch` (what every `<backend>-<workflow>` runs), `tl install`, `tl launch -h`.
+
+![The tl commands: help, list, gen, validate, launch, install](docs/demo/06-cli.gif)
 
 Re-record them with `bash docs/demo-env.sh` + [vhs](https://github.com/charmbracelet/vhs) (see the
 comment at the top of each tape).
