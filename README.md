@@ -11,9 +11,9 @@ Describe each workspace **once**; generate both `tmuxp` YAML and Zellij KDL from
 
 <br>
 
-![Zellij malware-analysis layout](docs/zellij-malware.gif)
+![Install terminal-layouts and enable the shell commands](docs/demo/01-install.gif)
 
-<sub>The <code>malware-analysis</code> workflow in Zellij — one manifest also generates the matching tmux layout.</sub>
+<sub><code>pipx install</code>, one line in <code>~/.zshrc</code>, then every workflow is <code>tmux-…</code>, <code>zellij-…</code> or <code>herdr-…</code> + Tab. <a href="#learn-it-in-5-gifs">Learn it in 5 GIFs ↓</a></sub>
 
 </div>
 
@@ -114,6 +114,38 @@ pipx install terminal-layouts
 tl install                                         # write all layouts to ~/.config
 tl gen zellij pentest                              # or emit one to stdout
 ```
+
+---
+
+## Learn it in 5 GIFs
+
+Every command is `<backend>-<workflow>`; `layouts` lists them all. Each GIF is a real recording
+(throwaway HOME, canned data in the monitor panes), rendered from `docs/demo/*.tape`.
+
+**1 · Install** — `pipx install`, one `eval` line, `layouts`, Tab on `tmux-` / `zellij-` / `herdr-`.
+
+![Install and enable the shell commands](docs/demo/01-install.gif)
+
+**2 · tmux** — every workflow: `tmux-ai-agents`, `tmux-claude-projects`, `tmux-ctf`, `tmux-docker`,
+`tmux-malware-analysis`, `tmux-osint`, `tmux-pentest`, `tmux-project`; then `tmux-ls`, `tmux-kill-all`.
+
+![Every workflow in tmux](docs/demo/02-tmux.gif)
+
+**3 · Zellij** — the same workflows, same names: `zellij-<workflow>`, `zellij-ls`, `zellij-kill-all`.
+
+![Every workflow in Zellij](docs/demo/03-zellij.gif)
+
+**4 · Herdr** — `herdr-<workflow>` creates each workspace in the running Herdr; `herdr-ls`, `herdr-close <id>`.
+
+![Every workflow as a Herdr workspace](docs/demo/04-herdr.gif)
+
+**5 · Options** — `.` / `DIR` (open there, named `<prefix><dir>`), `--new NAME`, `--label`, `-d`,
+`tmux-ls` · `tmux-attach` · `tmux-kill`.
+
+![Options: directory, --new, --label, detached](docs/demo/05-options.gif)
+
+Re-record them with `bash docs/demo-env.sh` + [vhs](https://github.com/charmbracelet/vhs) (see the
+comment at the top of each tape).
 
 ---
 
