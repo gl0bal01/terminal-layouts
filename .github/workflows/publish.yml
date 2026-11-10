@@ -12,6 +12,6 @@ jobs:
       id-token: write  # trusted publishing to PyPI (no API token needed)
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: uv build
       - run: uv publish
